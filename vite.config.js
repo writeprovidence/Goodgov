@@ -22,10 +22,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['@usedapp/core']
+      external: ['@usedapp/core', '@reown/appkit-adapter-wagmi']
     },
     rolldownOptions: {
-      external: ['@usedapp/core']
+      external: ['@usedapp/core', '@reown/appkit-adapter-wagmi']
     }
   }
 })
