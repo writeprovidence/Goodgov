@@ -19,5 +19,13 @@ export default defineConfig({
     alias: {
       'react-native': 'react-native-web'
     }
+  },
+  build: {
+    rollupOptions: {
+      external: ['@usedapp/core']
+    },
+    rolldownOptions: {
+      external: ['@usedapp/core']
+    }
   }
 })
