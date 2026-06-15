@@ -1,0 +1,9 @@
+﻿8f72bf9 chore: remove secrets from source control and update gitignore
+8414404 Fix web3sdk integration and configure vite node polyfills
+24c5d2a Refactor: Transition to gamified educational platform with streamlined messaging and reward systems
+cf08823 Optimize quiz randomization, formatting, and dashboard progress tracking
+68d937a Updated sidebar logo and navigation to landing page
+cde562d Gamified quiz experience: randomized 15-question sessions, lifelines, and tactical HUD
+ba3b70e Implement full quiz logic with multiple questions and result screen
+f51b915 Implement full dashboard with explore, quiz, and profile views
+8fe73e9 Initial commit - GoodGov Landing Page
