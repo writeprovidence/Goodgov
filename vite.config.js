@@ -19,13 +19,5 @@ export default defineConfig({
     alias: {
       'react-native': 'react-native-web'
     }
-  },
-  build: {
-    rollupOptions: {
-      external: ['@usedapp/core', '@reown/appkit-adapter-wagmi']
-    },
-    rolldownOptions: {
-      external: ['@usedapp/core', '@reown/appkit-adapter-wagmi']
-    }
   }
 })
