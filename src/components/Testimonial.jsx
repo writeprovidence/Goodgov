@@ -1,267 +1,226 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { 
+  Terminal, 
+  Target, 
+  Zap, 
+  ShieldCheck, 
+  Wallet, 
+  Activity,
+  ChevronRight
+} from 'lucide-react';
 
-const testimonials = [
+const faqData = [
   {
-    quote: "GoodGov helped me understand how DAO governance works — from voting mechanics to contributing meaningfully. Now I feel confident participating in real DAOs.",
-    name: 'Amara Okafor',
-    title: 'DAO Contributor & Web3 Enthusiast',
-    avatar: '/amara.png',
-    rating: 5,
+    icon: <Terminal size={24} />,
+    title: "The Platform",
+    question: "What is GoodGov?",
+    answer: "A next-gen gamified environment translating complex Web3 governance into tactical simulation missions.",
+    color: "#a855f7",
+    bg: "rgba(168, 85, 247, 0.05)"
   },
   {
-    quote: "I went from knowing nothing about decentralized governance to passing three governance proposals in a month. The quizzes are addictive and actually informative.",
-    name: 'Liam Chen',
-    title: 'DeFi Protocol Member',
-    avatar: '/liam.png',
-    rating: 5,
+    icon: <Target size={24} />,
+    title: "Rewards",
+    question: "How do I earn tokens?",
+    answer: "Achieve 100% accuracy in missions to trigger the milestone reward system and claim on-chain tokens.",
+    color: "#3b82f6",
+    bg: "rgba(59, 130, 246, 0.05)"
   },
   {
-    quote: "GoodGov leveled up my entire Web3 knowledge — from DeFi mechanics to DAO governance. The quizzes make complex concepts click, and I've applied every bit of it in real communities.",
-    name: 'Sofia Martinez',
-    title: 'Web3 Developer & Community Lead',
-    avatar: '/sofia.png',
-    rating: 5,
+    icon: <Zap size={24} />,
+    title: "Tactical",
+    question: "What are 'Lifelines'?",
+    answer: "Emergency countermeasures including 50/50 purges and shield protection to prevent mission failure.",
+    color: "#eab308",
+    bg: "rgba(234, 179, 8, 0.05)"
   },
+  {
+    icon: <Activity size={24} />,
+    title: "Access",
+    question: "Is it free to play?",
+    answer: "Affirmative. Access to all training sectors is zero-cost to ensure inclusive governance education.",
+    color: "#10b981",
+    bg: "rgba(16, 185, 129, 0.05)"
+  },
+  {
+    icon: <Wallet size={24} />,
+    title: "Security",
+    question: "Do I need a wallet?",
+    answer: "Required only for claiming on-chain rewards and rank verification. Supports MetaMask and Valora.",
+    color: "#ec4899",
+    bg: "rgba(236, 72, 153, 0.05)"
+  },
+  {
+    icon: <ShieldCheck size={24} />,
+    title: "Network",
+    question: "Network Support?",
+    answer: "Exclusively supports the Celo ecosystem and social impact protocols like GoodDollar.",
+    color: "#6366f1",
+    bg: "rgba(99, 102, 241, 0.05)"
+  }
 ];
 
-const Testimonial = () => {
-  const [active, setActive] = useState(0);
-  const t = testimonials[active];
-
+const FAQ = () => {
   return (
-    <section id="testimonials" style={{
+    <section id="faq" style={{
       padding: '120px 0',
-      background: 'white',
+      backgroundColor: '#050a15',
       position: 'relative',
-      overflow: 'hidden',
     }}>
-      {/* Decorative blobs */}
-      <div style={{
-        position: 'absolute',
-        top: '-100px',
-        right: '-100px',
-        width: '400px',
-        height: '400px',
-        background: 'radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%)',
-        borderRadius: '50%',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '-100px',
-        left: '-100px',
-        width: '350px',
-        height: '350px',
-        background: 'radial-gradient(circle, rgba(168,85,247,0.05) 0%, transparent 70%)',
-        borderRadius: '50%',
-        pointerEvents: 'none',
-      }} />
-
       <div className="container">
-        {/* Section label */}
-        <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '80px' }}>
           <span style={{
-            display: 'inline-block',
-            background: 'rgba(168, 85, 247, 0.08)',
-            border: '1px solid rgba(168, 85, 247, 0.2)',
-            borderRadius: '100px',
-            padding: '0.3rem 1rem',
-            fontSize: '0.8rem',
-            fontWeight: '600',
-            color: 'var(--secondary)',
-            letterSpacing: '0.08em',
+            fontSize: '0.75rem',
+            fontWeight: '900',
+            color: '#a855f7',
             textTransform: 'uppercase',
-            marginBottom: '1.25rem',
+            letterSpacing: '0.2em',
+            display: 'block',
+            marginBottom: '16px'
           }}>
-            What Learners Say
+            Support Knowledge Base
           </span>
           <h2 style={{
-            fontSize: 'clamp(2rem, 3.5vw, 2.8rem)',
-            fontWeight: '800',
-            color: 'var(--text-dark)',
-            letterSpacing: '-0.02em',
-            lineHeight: '1.2',
+            fontSize: 'clamp(2.2rem, 5vw, 3.5rem)',
+            fontWeight: '900',
+            color: 'white',
+            letterSpacing: '-0.04em',
+            lineHeight: '1.1'
           }}>
-            A quiz-powered path to <br />
-            <span style={{ color: 'var(--secondary)' }}>Web3 & DAO mastery.</span>
+            Explore the <span style={{ color: '#a855f7' }}>Master Files</span>
           </h2>
         </div>
 
-        {/* Main testimonial layout */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '5rem',
-          alignItems: 'center',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px',
         }}>
-          {/* Left: quote */}
-          <div>
-            {/* Stars */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem' }}>
-              {Array.from({ length: t.rating }).map((_, i) => (
-                <span key={i} style={{ color: '#fbbf24', fontSize: '1.25rem' }}>★</span>
-              ))}
-            </div>
-
-            {/* Quote mark */}
-            <div style={{ fontSize: '5rem', lineHeight: 0.6, color: 'var(--primary)', opacity: 0.15, fontFamily: 'Georgia, serif', marginBottom: '1.5rem', userSelect: 'none' }}>
-              ❝
-            </div>
-
-            <p style={{
-              fontSize: '1.3rem',
-              color: 'var(--text-dark)',
-              lineHeight: '1.65',
-              fontWeight: '500',
-              marginBottom: '2rem',
-              fontStyle: 'italic',
-            }}>
-              "{t.quote}"
-            </p>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-              <div style={{
-                width: '56px', height: '56px',
-                borderRadius: '50%',
-                border: '2px solid var(--primary-dim)',
+          {faqData.map((faq, index) => (
+            <div
+              key={index}
+              style={{
+                backgroundColor: '#0a0f1e',
+                border: '1px solid #1e293b',
+                borderRadius: '24px',
+                padding: '32px',
+                position: 'relative',
                 overflow: 'hidden',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(45, 212, 191, 0.15)',
-              }}>
-                <img src={t.avatar} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-              <div>
-                <div style={{ fontWeight: '700', color: 'var(--text-dark)', fontSize: '1rem' }}>{t.name}</div>
-                <div style={{ color: 'var(--text-body)', fontSize: '0.85rem' }}>{t.title}</div>
-              </div>
-            </div>
-
-            {/* Navigation dots & arrows */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              {testimonials.map((_, i) => (
-                <button
-                  key={i}
-                  id={`testimonial-dot-${i}`}
-                  onClick={() => setActive(i)}
-                  style={{
-                    width: i === active ? '28px' : '8px',
-                    height: '8px',
-                    borderRadius: '4px',
-                    background: i === active ? 'var(--primary)' : '#d1d5db',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    padding: 0,
-                  }}
-                />
-              ))}
-              <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
-                <button
-                  id="testimonial-prev"
-                  onClick={() => setActive(p => (p - 1 + testimonials.length) % testimonials.length)}
-                  style={{
-                    width: '40px', height: '40px',
-                    borderRadius: '50%',
-                    border: '1px solid #e2e8f0',
-                    background: 'white',
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1rem',
-                    color: 'var(--text-dark)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--primary)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                >
-                  ←
-                </button>
-                <button
-                  id="testimonial-next"
-                  onClick={() => setActive(p => (p + 1) % testimonials.length)}
-                  style={{
-                    width: '40px', height: '40px',
-                    borderRadius: '50%',
-                    border: '1px solid #e2e8f0',
-                    background: 'white',
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '1rem',
-                    color: 'var(--text-dark)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--primary)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                >
-                  →
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: visual card */}
-          <div style={{ position: 'relative' }}>
-            {/* Accent block behind */}
-            <div style={{
-              position: 'absolute',
-              top: '24px',
-              right: '-20px',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-              borderRadius: '28px',
-              opacity: 0.15,
-              zIndex: 0,
-            }} />
-
-            {/* Main visual card */}
-            <div style={{
-              position: 'relative',
-              zIndex: 1,
-              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-              borderRadius: '28px',
-              padding: '2.5rem',
-              border: '1px solid rgba(255,255,255,0.08)',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '400px',
-            }}>
-              {/* Glow */}
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                cursor: 'default'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = faq.color;
+                e.currentTarget.style.transform = 'translateY(-5px)';
+                e.currentTarget.style.boxShadow = `0 20px 40px rgba(0,0,0,0.4), 0 0 20px ${faq.color}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#1e293b';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {/* Corner Glow */}
               <div style={{
                 position: 'absolute',
-                top: '-50%',
-                right: '-30%',
-                width: '400px',
-                height: '400px',
-                background: 'radial-gradient(circle, rgba(45,212,191,0.2) 0%, transparent 70%)',
-                pointerEvents: 'none',
+                top: '-20px',
+                right: '-20px',
+                width: '100px',
+                height: '100px',
+                background: `radial-gradient(circle, ${faq.color}15 0%, transparent 70%)`,
+                pointerEvents: 'none'
               }} />
 
-              {/* Big avatar image */}
               <div style={{
-                width: '320px',
-                height: '320px',
-                borderRadius: '50%',
-                border: '4px solid var(--primary)',
-                padding: '8px',
-                background: 'rgba(255,255,255,0.05)',
-                boxShadow: '0 0 50px rgba(45, 212, 191, 0.3)',
-                position: 'relative',
-                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
               }}>
-                <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden' }}>
-                  <img src={t.avatar} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  backgroundColor: faq.bg,
+                  color: faq.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: `0 0 20px ${faq.color}10`
+                }}>
+                  {faq.icon}
                 </div>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: '900',
+                  color: '#475569',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em'
+                }}>
+                  {faq.title}
+                </span>
+              </div>
+
+              <div>
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '800',
+                  color: 'white',
+                  marginBottom: '12px',
+                  lineHeight: '1.3'
+                }}>
+                  {faq.question}
+                </h3>
+                <p style={{
+                  fontSize: '0.95rem',
+                  color: '#94a3b8',
+                  lineHeight: '1.6',
+                  margin: 0
+                }}>
+                  {faq.answer}
+                </p>
+              </div>
+
+              <div style={{
+                marginTop: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: faq.color,
+                fontSize: '0.75rem',
+                fontWeight: '800',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                opacity: 0.8
+              }}>
+                Intelligence Verified <ChevronRight size={14} />
               </div>
             </div>
-          </div>
+          ))}
+        </div>
+
+        {/* Bottom decorative section */}
+        <div style={{
+          marginTop: '80px',
+          padding: '40px',
+          borderRadius: '32px',
+          background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
+          border: '1px solid #1e293b',
+          textAlign: 'center'
+        }}>
+          <p style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: '600', margin: 0 }}>
+            Still have questions? Join our <span style={{ color: 'white' }}>Mission Discord</span> or contact the support staff directly.
+          </p>
         </div>
       </div>
     </section>
   );
 };
 
-export default Testimonial;
+export default FAQ;
+
+
+
+

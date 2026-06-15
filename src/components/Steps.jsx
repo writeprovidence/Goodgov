@@ -1,163 +1,117 @@
 import React from 'react';
 
-const steps = [
-  {
-    number: '01',
-    emoji: '🧩',
-    title: 'Take Fun Quizzes',
-    desc: 'Bite-sized interactive quizzes covering DAO basics, voting mechanisms, treasury management, and more.',
-    color: 'var(--primary)',
-    colorDim: 'rgba(45, 212, 191, 0.1)',
-    colorBorder: 'rgba(45, 212, 191, 0.2)',
-  },
-  {
-    number: '02',
-    emoji: '📈',
-    title: 'Level Up',
-    desc: 'Track your progress across topics. Move from newbie to expert at your own pace with structured paths.',
-    color: 'var(--accent)',
-    colorDim: 'rgba(59, 130, 246, 0.1)',
-    colorBorder: 'rgba(59, 130, 246, 0.2)',
-  },
-  {
-    number: '03',
-    emoji: '🏅',
-    title: 'Earn Rewards',
-    desc: 'Earn tokens and on-chain credentials that prove your governance knowledge to the Web3 community.',
-    color: 'var(--secondary)',
-    colorDim: 'rgba(168, 85, 247, 0.1)',
-    colorBorder: 'rgba(168, 85, 247, 0.2)',
-  },
-];
-
 const Steps = () => {
   return (
     <section id="steps" style={{
       padding: '120px 0',
-      background: '#fafbff',
+      backgroundColor: '#050a15',
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Top wave divider */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0,
-        height: '80px',
-        background: 'var(--bg-dark)',
-        clipPath: 'ellipse(55% 100% at 50% 0%)',
-      }} />
-
       <div className="container" style={{ position: 'relative', zIndex: 1 }}>
         {/* Section header */}
-        <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '6rem' }}>
           <span style={{
-            display: 'inline-block',
+            display: 'inline-flex',
             background: 'rgba(45, 212, 191, 0.08)',
             border: '1px solid rgba(45, 212, 191, 0.2)',
             borderRadius: '100px',
-            padding: '0.3rem 1rem',
-            fontSize: '0.8rem',
-            fontWeight: '600',
-            color: 'var(--primary)',
-            letterSpacing: '0.08em',
+            padding: '4px 16px',
+            fontSize: '0.75rem',
+            fontWeight: '800',
+            color: '#2dd4bf',
+            letterSpacing: '0.1em',
             textTransform: 'uppercase',
             marginBottom: '1.25rem',
           }}>
-            How It Works
+            Strategic Protocol
           </span>
           <h2 style={{
-            fontSize: 'clamp(2rem, 4vw, 3rem)',
-            fontWeight: '800',
-            color: 'var(--text-dark)',
-            letterSpacing: '-0.02em',
-            lineHeight: '1.2',
+            fontSize: 'clamp(2.5rem, 4vw, 3.5rem)',
+            fontWeight: '900',
+            color: 'white',
+            letterSpacing: '-0.03em',
+            lineHeight: '1.1',
           }}>
-            Start Learning in <span style={{ color: 'var(--primary)' }}>3 Simple Steps</span>
+            Interactive <span style={{ color: '#2dd4bf' }}>Learning Journey</span>
           </h2>
         </div>
 
         {/* Cards grid */}
-        <div style={{
+        <div className="responsive-grid" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '2rem',
+          gap: '2.5rem',
         }}>
-          {steps.map((step, i) => (
+          {[
+            { num: '01', icon: '🎯', title: 'Operational Entry', desc: 'Engage with bite-sized missions covering Web3 fundamentals and DAO mechanics.', color: '#2dd4bf' },
+            { num: '02', icon: '🛡️', title: 'Rank Progression', desc: 'Unlock specialized sectors and elevate your status from Field Agent to Senior Operator.', color: '#a855f7' },
+            { num: '03', icon: '🪙', title: 'Asset Claim', desc: 'Secure on-chain proof of your ecosystem expertise and unlock unique token rewards.', color: '#fbbf24' }
+          ].map((step, i) => (
             <div
               key={i}
-              id={`step-card-${i + 1}`}
               style={{
-                padding: '2.5rem 2rem',
-                borderRadius: '24px',
-                background: 'white',
-                border: `1px solid ${step.colorBorder}`,
-                boxShadow: '0 4px 30px rgba(0,0,0,0.05)',
+                padding: '3.5rem 2.5rem',
+                borderRadius: '32px',
+                background: '#0a0f1e',
+                border: '1px solid #1e293b',
                 position: 'relative',
                 overflow: 'hidden',
-                cursor: 'default',
-                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                transition: 'all 0.3s ease',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.08)';
+                e.currentTarget.style.transform = 'translateY(-10px)';
+                e.currentTarget.style.borderColor = step.color + '40';
+                e.currentTarget.style.boxShadow = `0 20px 50px ${step.color}15`;
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 30px rgba(0,0,0,0.05)';
+                e.currentTarget.style.borderColor = '#1e293b';
+                e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {/* Background number watermark */}
-              <span style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '1.5rem',
-                fontSize: '7rem',
-                fontWeight: '900',
-                fontFamily: 'PP Mori, sans-serif',
-                color: step.colorDim,
-                userSelect: 'none',
-                lineHeight: 1,
-              }}>
-                {step.number}
-              </span>
-
-              {/* Emoji icon */}
               <div style={{
-                width: '64px',
-                height: '64px',
-                background: step.colorDim,
-                border: `1px solid ${step.colorBorder}`,
-                borderRadius: '18px',
+                position: 'absolute',
+                top: '-20px',
+                right: '1.5rem',
+                fontSize: '8rem',
+                fontWeight: '950',
+                color: 'rgba(255,255,255,0.03)',
+                userSelect: 'none',
+              }}>
+                {step.num}
+              </div>
+
+              <div style={{
+                width: '72px',
+                height: '72px',
+                background: step.color + '10',
+                border: `1px solid ${step.color}30`,
+                borderRadius: '20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.8rem',
-                marginBottom: '1.5rem',
+                fontSize: '2rem',
+                marginBottom: '2rem',
+                position: 'relative',
+                zIndex: 1
               }}>
-                {step.emoji}
+                {step.icon}
               </div>
 
               <h3 style={{
-                fontSize: '1.4rem',
-                fontWeight: '700',
-                color: 'var(--text-dark)',
-                marginBottom: '0.75rem',
-                fontFamily: 'PP Mori, sans-serif',
+                fontSize: '1.5rem',
+                fontWeight: '800',
+                color: 'white',
+                marginBottom: '1rem',
+                position: 'relative',
+                zIndex: 1
               }}>
                 {step.title}
               </h3>
-              <p style={{ color: 'var(--text-body)', lineHeight: '1.65', fontSize: '0.95rem' }}>
+              <p style={{ color: '#94a3b8', lineHeight: '1.7', fontSize: '1rem', position: 'relative', zIndex: 1 }}>
                 {step.desc}
               </p>
-
-              {/* Bottom indicator */}
-              <div style={{
-                marginTop: '2rem',
-                height: '3px',
-                width: '40px',
-                background: step.color,
-                borderRadius: '2px',
-              }} />
             </div>
           ))}
         </div>

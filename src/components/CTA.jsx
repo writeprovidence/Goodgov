@@ -1,102 +1,88 @@
 import React from 'react';
 
-const CTA = () => {
+const CTA = ({ onStart }) => {
   return (
-    <section id="cta" style={{ padding: '80px 0 100px' }}>
+    <section id="cta" style={{ padding: '80px 0 120px', backgroundColor: '#050a15' }}>
       <div className="container">
         <div style={{
           position: 'relative',
-          borderRadius: '32px',
+          borderRadius: '40px',
           overflow: 'hidden',
-          padding: '7rem 3rem',
+          padding: '8rem 4rem',
           textAlign: 'center',
-          background: 'linear-gradient(135deg, #0f172a 0%, #111827 60%, #0f172a 100%)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          background: 'linear-gradient(135deg, #0f172a 0%, #050a15 100%)',
+          border: '1px solid #1e293b',
+          boxShadow: '0 30px 60px rgba(0,0,0,0.5)',
         }}>
           {/* Background decorations */}
           <div style={{
             position: 'absolute',
             inset: 0,
             background: `
-              radial-gradient(ellipse 60% 50% at 50% -20%, rgba(45,212,191,0.18) 0%, transparent 70%),
-              radial-gradient(ellipse 40% 40% at 90% 50%, rgba(168,85,247,0.10) 0%, transparent 70%),
-              radial-gradient(ellipse 40% 40% at 10% 50%, rgba(59,130,246,0.08) 0%, transparent 70%)
+              radial-gradient(ellipse 60% 50% at 50% -20%, rgba(45,212,191,0.2) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 90% 50%, rgba(168,85,247,0.15) 0%, transparent 70%)
             `,
             pointerEvents: 'none',
           }} />
 
-          {/* Dot grid overlay */}
+          {/* Terminal overlay lines */}
           <div style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 0)',
-            backgroundSize: '28px 28px',
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px)',
+            backgroundSize: '100% 4px',
             pointerEvents: 'none',
-            zIndex: 0,
+            opacity: 0.3
           }} />
-
-          {/* Floating decorative elements */}
-          <div style={{ position: 'absolute', top: '20%', left: '8%', fontSize: '2.5rem', opacity: 0.15, animation: 'float 5s ease-in-out infinite' }}>🗳️</div>
-          <div style={{ position: 'absolute', top: '30%', right: '8%', fontSize: '2rem', opacity: 0.12, animation: 'float 3.5s ease-in-out infinite reverse' }}>🏛️</div>
-          <div style={{ position: 'absolute', bottom: '20%', left: '15%', fontSize: '1.75rem', opacity: 0.1, animation: 'float 4s ease-in-out infinite 1s' }}>🏅</div>
-          <div style={{ position: 'absolute', bottom: '25%', right: '12%', fontSize: '2rem', opacity: 0.12, animation: 'float 4.5s ease-in-out infinite 0.5s' }}>⛓️</div>
 
           {/* Content */}
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.75rem',
               background: 'rgba(45, 212, 191, 0.1)',
-              border: '1px solid rgba(45, 212, 191, 0.25)',
+              border: '1px solid rgba(45, 212, 191, 0.3)',
               borderRadius: '100px',
-              padding: '0.35rem 1.2rem',
-              marginBottom: '2rem',
+              padding: '6px 20px',
+              marginBottom: '2.5rem',
             }}>
-              <span style={{ width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%' }} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '600', letterSpacing: '0.05em' }}>
-                Join 10,000+ Learners
+              <span style={{ width: '8px', height: '8px', background: '#2dd4bf', borderRadius: '50%', boxShadow: '0 0 10px #2dd4bf' }} />
+              <span style={{ fontSize: '0.85rem', color: '#2dd4bf', fontWeight: '800', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                READY FOR DEPLOYMENT
               </span>
             </div>
 
             <h2 style={{
-              fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
-              fontWeight: '800',
+              fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+              fontWeight: '900',
               color: 'white',
-              letterSpacing: '-0.03em',
-              lineHeight: '1.15',
-              marginBottom: '1.25rem',
+              letterSpacing: '-0.04em',
+              lineHeight: '1.1',
+              marginBottom: '1.5rem',
             }}>
-              Ready To Become A Better <br />
-              <span className="gradient-text">Web3 Citizen?</span>
+              Master Web3. <br />
+              <span style={{ color: '#2dd4bf' }}>Lead Governance</span>.
             </h2>
 
             <p style={{
-              color: 'var(--text-muted)',
-              fontSize: '1.1rem',
-              maxWidth: '480px',
-              margin: '0 auto 2.5rem',
-              lineHeight: '1.65',
+              color: '#94a3b8',
+              fontSize: '1.2rem',
+              maxWidth: '540px',
+              margin: '0 auto 3rem',
+              lineHeight: '1.6',
+              fontWeight: '500'
             }}>
-              Start your governance journey today. Free quizzes, real rewards, and a community of 10K+ Web3 learners.
+              Master Web3 and DAO mechanics through interactive missions. Earn rank and claim unique rewards.
             </p>
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button id="cta-join-now" className="btn-primary" style={{
-                padding: '1.1rem 3rem',
-                fontSize: '1.05rem',
-                borderRadius: '14px',
-              }}>
-                🚀 Join Now — It's Free
-              </button>
-              <button id="cta-explore" className="btn-outline" style={{
-                padding: '1.1rem 2rem',
-                fontSize: '1.05rem',
-                borderRadius: '14px',
-                color: 'white',
-                borderColor: 'rgba(255,255,255,0.15)',
-              }}>
-                Explore Quizzes
+            <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button 
+                className="btn-primary" 
+                onClick={onStart}
+                style={{ cursor: 'pointer' }}
+              >
+                Initialize Mission
               </button>
             </div>
           </div>

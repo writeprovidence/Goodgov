@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import WalletDropdown from './WalletDropdown';
 
-const Navbar = () => {
+const Navbar = ({ onStart, authenticated, user, logout, login }) => {
   const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -35,13 +35,34 @@ const Navbar = () => {
         />
       </div>
 
-      <button id="nav-cta" className="btn-primary" style={{
-        padding: '0.65rem 1.5rem',
-        borderRadius: '10px',
-        fontSize: '0.9rem',
-      }}>
-        Get Started →
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {!authenticated ? (
+          <button 
+            id="nav-cta" 
+            className="btn-primary" 
+            onClick={() => onStart()}
+            style={{ cursor: 'pointer' }}
+          >
+            Play Now
+          </button>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button 
+              className="btn-primary" 
+              onClick={() => onStart()}
+              style={{ cursor: 'pointer' }}
+            >
+              Enter Hub
+            </button>
+            <WalletDropdown 
+              address={user?.wallet?.address} 
+              authenticated={authenticated} 
+              onLogout={logout}
+              onProfile={() => onStart(null, 'Profile')}
+            />
+          </div>
+        )}
+      </div>
     </nav>
   );
 };

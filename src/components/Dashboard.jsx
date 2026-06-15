@@ -1,0 +1,1749 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { ethers } from 'ethers';
+import { 
+  Book,
+  BookOpen, 
+  MessageSquare, 
+  Bell, 
+  User, 
+  ArrowLeft, 
+  ChevronRight,
+  LogOut,
+  Settings,
+  Shield,
+  Zap,
+  Globe,
+  Menu,
+  X,
+  Search,
+} from 'lucide-react';
+import { 
+  DAO_QUIZZES as daoQuizzes, 
+  WEB3_ESSENTIALS_QUIZZES as web3Quizzes, 
+  ECOSYSTEM_QUIZZES 
+} from '../data/quizzes';
+import { GLOSSARY_TERMS, GLOSSARY_CATEGORIES, CATEGORY_COLORS, GOVERNANCE_FORUMS } from '../data/glossary';
+import LoadingScreen from './LoadingScreen';
+import WalletDropdown from './WalletDropdown';
+
+const GD_TOKEN_ADDRESS = "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A";
+const GOODDAPP_URL = "https://gooddapp.org";
+const GOODWALLET_URL = "https://wallet.gooddollar.org";
+
+
+
+const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
+  <div 
+    onClick={onClick}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '12px 16px',
+      borderRadius: '12px',
+      cursor: 'pointer',
+      backgroundColor: active ? 'rgba(45, 212, 191, 0.1)' : 'transparent',
+      color: active ? '#2dd4bf' : '#94a3b8',
+      transition: 'all 0.2s ease',
+      marginBottom: '4px',
+      fontWeight: active ? '700' : '500',
+      border: active ? '1px solid rgba(45, 212, 191, 0.2)' : '1px solid transparent'
+    }}
+    onMouseEnter={(e) => {
+      if (!active) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+    }}
+    onMouseLeave={(e) => {
+      if (!active) e.currentTarget.style.backgroundColor = 'transparent';
+    }}
+  >
+    <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+    <span style={{ fontSize: '0.9rem' }}>{label}</span>
+  </div>
+);
+
+import { QuizCard } from './QuizElements';
+
+const Dashboard = ({ onBack, initialMode, initialTab }) => {
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 768;
+
+  const [activeTab, setActiveTab] = useState(initialTab || 'Knowledge Base');
+  const [currentView, setCurrentView] = useState('selection');
+  const [activeQuiz, setActiveQuiz] = useState(null);
+  const [activeQuizStage, setActiveQuizStage] = useState(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [score, setScore] = useState(0);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [shuffledQuestions, setShuffledQuestions] = useState([]);
+  const [lifelines, setLifelines] = useState({ fiftyFifty: true, lifeline: true });
+  const [hiddenOptions, setHiddenOptions] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const { login, logout, authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+  const walletAddress = user?.wallet?.address;
+  const isLoggedIn = authenticated;
+  const isConnecting = false; // Privy handles connection state internally
+
+  const handleVerifyIdentity = async (e) => {
+    e.preventDefault();
+    if (!wallets || wallets.length === 0) {
+      alert("Please connect your wallet first.");
+      login();
+      return;
+    }
+    try {
+      const eip1193provider = await wallets[0].getEthereumProvider();
+      const provider = new ethers.providers.Web3Provider(eip1193provider);
+      const { ClaimSDK } = await import("@gooddollar/web3sdk-v2");
+      const sdk = new ClaimSDK(provider, "production-celo");
+      
+      const callbackUrl = window.location.href;
+      const popupMode = true;
+      
+      const link = await sdk.generateFVLink("Agent", callbackUrl, popupMode, 42220);
+      if (popupMode) {
+        window.open(link, 'GoodDollar Verification', 'width=400,height=600');
+      } else {
+        window.location.href = link;
+      }
+    } catch (err) {
+      console.error("Verification error:", err);
+      alert("Failed to initiate verification. " + err.message);
+    }
+  };
+  const [selectedEcosystem, setSelectedEcosystem] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [glossaryCategory, setGlossaryCategory] = useState('All');
+  const [activeLetter, setActiveLetter] = useState('All');
+  const [knowledgeSubTab, setKnowledgeSubTab] = useState('Web3 Basics');
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [launchingQuiz, setLaunchingQuiz] = useState(null);
+
+  const startQuiz = useCallback((quiz, stage) => {
+    if (!quiz.questions || quiz.questions.length === 0) return;
+    
+    setLaunchingQuiz({ quiz, stage });
+    setIsLaunching(true);
+
+    setTimeout(() => {
+      // Shuffle and pick up to 20 questions from the pool
+      const pool = [...quiz.questions].sort(() => 0.5 - Math.random());
+      const selected = pool.slice(0, 20).map(q => {
+        // Create a copy of options with their original index
+        const optionsWithMeta = q.options.map((opt, idx) => ({
+          text: opt,
+          isCorrect: idx === q.correct
+        }));
+        
+        // Shuffle the options
+        const shuffledOptionsWithMeta = optionsWithMeta.sort(() => 0.5 - Math.random());
+        
+        return {
+          ...q,
+          options: shuffledOptionsWithMeta.map(o => o.text),
+          correct: shuffledOptionsWithMeta.findIndex(o => o.isCorrect)
+        };
+      });
+      
+      setActiveQuiz(quiz);
+      setShuffledQuestions(selected);
+      setActiveQuizStage(stage);
+      setCurrentQuestionIndex(0);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setScore(0);
+      setQuizCompleted(false);
+      setCurrentView('quiz');
+      setLifelines({ fiftyFifty: true, lifeline: true });
+      setHiddenOptions([]);
+      setTimeLeft(60);
+      setIsLaunching(false);
+      setLaunchingQuiz(null);
+    }, 8000);
+  }, []);
+
+
+
+  const [completedStages, setCompletedStages] = useState(() => {
+    const saved = localStorage.getItem('goodgov_completed_stages');
+    return saved ? JSON.parse(saved) : {
+      'DAO knowledge': false,
+      'Ecosystem specific': false,
+      'Web3 Basics': false,
+    };
+  });
+  const [perfectQuizzes, setPerfectQuizzes] = useState(() => {
+    const saved = localStorage.getItem('goodgov_perfect_quizzes');
+    return saved ? JSON.parse(saved) : {
+      'DAO knowledge': [],
+      'Ecosystem specific': [],
+      'Web3 Basics': [],
+    };
+  });
+
+  const [claimedRewards] = useState(() => {
+    const saved = localStorage.getItem('goodgov_claimed_rewards');
+    return saved ? JSON.parse(saved) : {
+      'DAO knowledge': false,
+      'Ecosystem specific': false,
+      'Web3 Basics': false,
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('goodgov_claimed_rewards', JSON.stringify(claimedRewards));
+  }, [claimedRewards]);
+
+
+
+  useEffect(() => {
+    localStorage.setItem('goodgov_completed_stages', JSON.stringify(completedStages));
+  }, [completedStages]);
+
+  useEffect(() => {
+    localStorage.setItem('goodgov_perfect_quizzes', JSON.stringify(perfectQuizzes));
+  }, [perfectQuizzes]);
+
+  // Auto-launch quiz if initialMode is provided (from landing page game cards)
+  useEffect(() => {
+    if (!initialMode) return;
+    const allQuizPool = [
+      ...daoQuizzes,
+      ...web3Quizzes,
+      ...Object.values(ECOSYSTEM_QUIZZES).flat()
+    ].filter(q => q.questions && q.questions.length > 0);
+    if (allQuizPool.length === 0) return;
+    const quiz = allQuizPool[Math.floor(Math.random() * allQuizPool.length)];
+    // Small delay to allow state to settle
+    setTimeout(() => startQuiz(quiz, quiz.stage || 'DAO knowledge'), 100);
+  }, [initialMode, startQuiz]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (currentView !== 'quiz' || isAnswered || quizCompleted || !activeQuiz) return;
+    const interval = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(interval); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [currentView, isAnswered, quizCompleted, activeQuiz]);
+
+  // Auto-mark answered when timer expires
+  useEffect(() => {
+    if (timeLeft === 0 && currentView === 'quiz' && !isAnswered && !quizCompleted) {
+      // Use a timeout to move the state update out of the synchronous render/effect cycle
+      // specifically to satisfy strict linting rules regarding cascading renders.
+      const timer = setTimeout(() => setIsAnswered(true), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [timeLeft, currentView, isAnswered, quizCompleted]);
+
+  const categories = ['All', 'DAO knowledge', 'Ecosystem specific', 'Web3 Basics'];
+
+  // Redundant tab reset effect removed to fix sidebar navigation functionality
+
+  const stageQuizCounts = { 
+    'DAO knowledge': daoQuizzes.length, 
+    'Ecosystem specific': Object.values(ECOSYSTEM_QUIZZES).flat().length, 
+    'Web3 Basics': web3Quizzes.length 
+  };
+
+  const allStagesComplete = completedStages['DAO knowledge'] && completedStages['Ecosystem specific'] && completedStages['Web3 Basics'];
+
+
+
+  const ecosystems = [
+    { name: 'GoodDollar', icon: 'G', logo: '/gooddollar-logo.svg', color: '#00c3ae', desc: 'A multi-chain system that sustainably funds UBI at scale.', slug: 'gooddollar' },
+    { name: 'Zksync', icon: 'ZK', logo: 'https://www.zksync.io/brand/zksync-logo/zksync-logomark-light-transparent.svg', color: '#4c57d8', desc: 'Zero-Knowledge rollups for Ethereum scaling.', slug: 'zksync' },
+    { name: 'Celo', icon: 'C', logo: 'https://raw.githubusercontent.com/celo-org/branding/master/Celo-Logo-Color.svg', color: '#fbcc5c', desc: 'Mobile-first blockchain for financial inclusion.', slug: 'celo' },
+    { name: 'Optimism', icon: 'OP', logo: 'https://raw.githubusercontent.com/ethereum-optimism/brand-assets/main/logos/op-logo.svg', color: '#ff0420', desc: 'Layer 2 blockchain that scales Ethereum.', slug: 'optimism' },
+    { name: 'Arbitrum', icon: 'A', logo: 'https://raw.githubusercontent.com/OffchainLabs/brand-assets/main/arbitrum-logo.svg', color: '#28a0f0', desc: 'Leading optimistic rollup for Ethereum.', slug: 'arbitrum' },
+    { name: 'ENS', icon: '◇', logo: 'https://raw.githubusercontent.com/ensdomains/media-kit/main/Logos/ENS_Logo_Symbol_Color.svg', color: '#5298ff', desc: 'Turns wallet addresses into human-readable names.', slug: 'ens' },
+  ];
+
+
+
+  // Simulation historical data removed as it is handled via perfectQuizzes state
+
+  const connectWallet = () => {
+    login();
+  };
+
+  const disconnectWallet = () => {
+    logout();
+    setCurrentView('explore');
+  };
+
+
+
+
+
+
+  const startGlossaryQuiz = (targetTerm) => {
+    // Pick 4 other terms from the same category for distractors
+    const sameCatTerms = GLOSSARY_TERMS.filter(t => t.category === targetTerm.category && t.term !== targetTerm.term);
+    const getRandomDistractors = (pool, count) => {
+      return [...pool].sort(() => 0.5 - Math.random()).slice(0, count);
+    };
+
+    // Question 1: True Definition of the target term
+    const distractors1 = getRandomDistractors(sameCatTerms.length > 3 ? sameCatTerms : GLOSSARY_TERMS, 3);
+    const q1 = {
+      question: `What is the true and complete definition of "${targetTerm.term}"?`,
+      options: [targetTerm.definition, ...distractors1.map(d => d.definition)],
+      correct: 0,
+      explanation: `ACCURACY RECOVERY: The true definition of ${targetTerm.term} is: ${targetTerm.definition}`
+    };
+
+    // Question 2: Category association
+    const allCats = GLOSSARY_CATEGORIES.filter(c => c !== 'All' && c !== targetTerm.category);
+    const distractors2 = getRandomDistractors(allCats, 3);
+    const q2 = {
+      question: `Based on its definitive purpose, in which sector does "${targetTerm.term}" operate?`,
+      options: [targetTerm.category, ...distractors2],
+      correct: 0,
+      explanation: `${targetTerm.term} is a core component of the ${targetTerm.category} sector in the Web3 ecosystem.`
+    };
+
+    // Question 3: Random terms from the same category to round out the quiz
+    const roundOut = getRandomDistractors(sameCatTerms, 2);
+    const additionalQuestions = roundOut.map(t => {
+      const dist = getRandomDistractors(GLOSSARY_TERMS.filter(item => item.term !== t.term), 3);
+      return {
+        question: `Identify the true definition for the related term: "${t.term}"`,
+        options: [t.definition, ...dist.map(d => d.definition)],
+        correct: 0,
+        explanation: `INTEL VERIFIED: ${t.term} correctly means: ${t.definition}`
+      };
+    });
+
+    const quiz = {
+      title: `${targetTerm.term} Intelligence Check`,
+      description: `Test your mastery of ${targetTerm.term} and related ${targetTerm.category} concepts.`,
+      questions: [q1, q2, ...additionalQuestions],
+      stage: 'Knowledge Base'
+    };
+
+    startQuiz(quiz, 'Knowledge Base');
+  };
+
+  const handleUseLifeline = (type) => {
+    if (!lifelines[type] || isAnswered) return;
+    
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    const correctIndex = currentQuestion.correct;
+    
+    // Get indices of incorrect answers
+    const incorrectIndices = currentQuestion.options
+      .map((_, i) => i)
+      .filter(i => i !== correctIndex);
+      
+    // Shuffle and pick 2 to hide
+    const toHide = incorrectIndices.sort(() => 0.5 - Math.random()).slice(0, 2);
+    
+    setHiddenOptions(toHide);
+    setLifelines(prev => ({ ...prev, [type]: false }));
+  };
+
+  const handleOptionSelect = (index) => {
+    if (isAnswered || hiddenOptions.includes(index)) return;
+    setSelectedOption(index);
+    setIsAnswered(true);
+    if (index === shuffledQuestions[currentQuestionIndex].correct) {
+      setScore(s => s + 1);
+    }
+  };
+
+  const nextQuestion = () => {
+    const nextIndex = currentQuestionIndex + 1;
+    if (nextIndex < shuffledQuestions.length) {
+      setCurrentQuestionIndex(nextIndex);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setHiddenOptions([]);
+      setTimeLeft(30);
+    } else {
+      setQuizCompleted(true);
+      const isPerfect = score === shuffledQuestions.length;
+      if (isPerfect && activeQuizStage && activeQuizStage !== 'Knowledge Base') {
+        setPerfectQuizzes(prev => {
+          const currentStageQuizzes = prev[activeQuizStage] || [];
+          // Only add if not already present to ensure unique quiz completion
+          if (!currentStageQuizzes.includes(activeQuiz.title)) {
+            const updatedQuizzes = [...currentStageQuizzes, activeQuiz.title];
+            const updated = { ...prev, [activeQuizStage]: updatedQuizzes };
+            
+            // Check if stage is now complete
+            const required = stageQuizCounts[activeQuizStage];
+            if (updatedQuizzes.length >= required) {
+              setCompletedStages(cs => ({ ...cs, [activeQuizStage]: true }));
+            }
+            return updated;
+          }
+          return prev;
+        });
+      }
+    }
+  };
+
+  const getNextQuiz = () => {
+    let source;
+    if (activeQuizStage === 'DAO knowledge') source = daoQuizzes;
+    else if (activeQuizStage === 'Web3 Basics') source = web3Quizzes;
+    else return null;
+
+    const currentIndex = source.findIndex(q => q.title === activeQuiz.title);
+    if (currentIndex !== -1 && currentIndex < source.length - 1) {
+      return source[currentIndex + 1];
+    }
+    return null;
+  };
+
+  const renderQuizView = () => {
+    if (!activeQuiz || !activeQuiz.questions) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#0a0f1e', color: 'white', zIndex: 100, padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <h2>No questions available for this quiz yet.</h2>
+          <button onClick={() => setCurrentView('explore')} className="btn-primary" style={{ marginTop: '20px' }}>Go Back</button>
+        </div>
+      );
+    }
+
+    if (quizCompleted) {
+      const isPerfectRun = score === shuffledQuestions.length;
+      const isGlossaryQuiz = activeQuizStage === 'Knowledge Base';
+
+      if (isGlossaryQuiz) {
+        return (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ maxWidth: '480px', width: '100%', textAlign: 'center', animation: 'fadeIn 0.5s ease-out' }}>
+              <div style={{ fontSize: '5rem', marginBottom: '24px' }}>📊</div>
+              <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '16px' }}>Intelligence Check Complete</h2>
+              <div style={{ backgroundColor: '#0f172a', border: '1.5px solid #1e293b', borderRadius: '24px', padding: '40px', marginBottom: '32px' }}>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Final Score</div>
+                <div style={{ fontSize: '4rem', fontWeight: '900', color: '#2dd4bf' }}>{score}/{shuffledQuestions.length}</div>
+                <div style={{ marginTop: '16px', color: '#94a3b8', fontSize: '0.95rem' }}>{activeQuiz.title}</div>
+              </div>
+              <button 
+                onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }}
+                style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: '#2dd4bf', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(45, 212, 191, 0.2)' }}
+              >
+                RETURN TO GLOSSARY
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', overflowY: 'auto' }}>
+          <div style={{ maxWidth: '620px', margin: '60px auto', textAlign: 'center' }}>
+            <div style={{ fontSize: '5rem', marginBottom: '24px', animation: 'float 3s ease-in-out infinite' }}>
+              {isPerfectRun ? '🏆' : '🎮'}
+            </div>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px', letterSpacing: '-0.02em' }}>
+              {isPerfectRun ? 'Perfect Victory!' : 'Mission Failed'}
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '32px' }}>
+              {activeQuiz.title} — Score: <strong style={{ color: 'white' }}>{score}/{shuffledQuestions.length}</strong>
+            </p>
+
+            <div style={{ backgroundColor: '#0f172a', border: '1.5px solid #1e293b', borderRadius: '24px', padding: '28px', marginBottom: '28px', textAlign: 'left' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px' }}>Token Claim Progress</div>
+              {[['Web3 Basics', '🌐'], ['DAO knowledge', '🏛️'], ['Ecosystem specific', '🌱']].map(([stage, icon]) => (
+                <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '16px', marginBottom: '12px', backgroundColor: completedStages[stage] ? 'rgba(45,212,191,0.07)' : 'transparent', border: `1.5px solid ${completedStages[stage] ? '#2dd4bf40' : '#1e293b'}` }}>
+                  <div style={{ fontSize: '1.4rem' }}>{icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: '700', color: completedStages[stage] ? '#2dd4bf' : '#94a3b8', fontSize: '0.95rem' }}>{stage}</div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '800', color: completedStages[stage] ? '#2dd4bf' : '#64748b' }}>
+                        {perfectQuizzes[stage]?.length || 0}/{stageQuizCounts[stage]}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{completedStages[stage] ? 'Completed with 100% accuracy' : 'In Progress'}</div>
+                  </div>
+                  <div style={{ fontSize: '1.2rem' }}>{completedStages[stage] ? '✅' : '🔒'}</div>
+                </div>
+              ))}
+            </div>
+
+            {isPerfectRun ? (
+              <div style={{ padding: '18px', borderRadius: '14px', backgroundColor: 'rgba(45, 212, 191, 0.07)', border: '1px solid rgba(45, 212, 191, 0.2)', marginBottom: '20px', color: '#2dd4bf', fontSize: '0.9rem', fontWeight: '600' }}>
+                ✅ Stage cleared with 100% accuracy!
+              </div>
+            ) : (
+              <div style={{ padding: '18px', borderRadius: '14px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '20px', color: '#ef4444', fontSize: '0.9rem', fontWeight: '600' }}>
+                ⚠️ Mission Failed. Token rewards for this stage remain locked.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {getNextQuiz() && (
+                <button 
+                  onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
+                  style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: '#2dd4bf', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(45, 212, 191, 0.2)' }}
+                >
+                  PROCEED TO NEXT MISSION
+                </button>
+              )}
+
+              {isPerfectRun && (
+                <div style={{ marginTop: '12px', padding: '20px', borderRadius: '16px', background: 'rgba(45, 212, 191, 0.1)', border: '1.5px solid rgba(45, 212, 191, 0.3)', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>💰</div>
+                  <div style={{ fontWeight: '800', color: '#2dd4bf', marginBottom: '4px' }}>G$ Reward Available</div>
+                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 16px 0' }}>You've earned mission rewards! Ensure you are GoodDollar verified to claim.</p>
+                  <a 
+                    href={GOODDAPP_URL} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      display: 'inline-block', padding: '10px 20px', borderRadius: '10px', 
+                      background: '#2dd4bf', color: 'black', fontWeight: '800', 
+                      fontSize: '0.9rem', textDecoration: 'none' 
+                    }}
+                  >
+                    VERIFY & CLAIM G$
+                  </a>
+                </div>
+              )}
+
+              {allStagesComplete && isPerfectRun && (
+                <button style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.3)' }}>
+                  🪙 Claim Grand Master Token
+                </button>
+              )}
+            </div>
+            <button onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} style={{ background: 'none', border: '1px solid #1e293b', color: '#94a3b8', width: '100%', padding: '16px', borderRadius: '16px', fontWeight: '700', cursor: 'pointer', marginTop: '12px' }}>
+              Choose New Quiz
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    if (!currentQuestion) return null;
+
+    const progress = ((currentQuestionIndex + 1) / shuffledQuestions.length) * 100;
+    const isPerfectSoFar = score === currentQuestionIndex || (isAnswered && score === currentQuestionIndex + 1);
+    const timerRadius = 20;
+    const timerCircumference = 2 * Math.PI * timerRadius;
+    const timerColor = timeLeft > 15 ? '#2dd4bf' : timeLeft > 5 ? '#fbbf24' : '#ef4444';
+    const timerDashOffset = timerCircumference * (1 - timeLeft / 30);
+    const timedOut = timeLeft === 0 && isAnswered && selectedOption === null;
+
+    const handleExitConfirm = () => {
+      setShowExitModal(false);
+      setActiveQuiz(null);
+      setQuizCompleted(false);
+      setCurrentQuestionIndex(0);
+      setScore(0);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setCurrentView('selection');
+    };
+
+    return (
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1001, display: 'flex' }}>
+        {/* Exit Confirmation Modal */}
+        {showExitModal && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 2000,
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px'
+          }}>
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1.5px solid #1e293b',
+              borderRadius: '28px',
+              padding: '40px 36px',
+              maxWidth: '420px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.5)'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⚠️</div>
+              <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'white', marginBottom: '12px' }}>
+                Abort Mission?
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '32px' }}>
+                Your current progress will be <strong style={{ color: '#ef4444' }}>lost</strong> and any token rewards for this run will not be counted.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowExitModal(false)}
+                  style={{
+                    flex: 1, padding: '14px', borderRadius: '14px',
+                    background: 'none', border: '1.5px solid #1e293b',
+                    color: '#94a3b8', fontWeight: '700', fontSize: '0.95rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Stay in Mission
+                </button>
+                <button
+                  onClick={handleExitConfirm}
+                  style={{
+                    flex: 1, padding: '14px', borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    border: 'none', color: 'white',
+                    fontWeight: '800', fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 20px rgba(239,68,68,0.3)'
+                  }}
+                >
+                  Exit Quiz
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {!isMobile && (
+          <div style={{ width: '280px', minWidth: '280px', backgroundColor: '#0a0f1e', borderRight: '1px solid #1e293b', padding: '24px 20px', display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'auto', boxSizing: 'border-box', gap: '24px' }}>
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ padding: '14px 16px', backgroundColor: '#0f172a', borderRadius: '14px', border: '1px solid #1e293b' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '6px' }}>Mission</div>
+                <h2 style={{ fontSize: '1rem', fontWeight: '800', color: 'white', margin: 0, lineHeight: '1.3' }}>{activeQuiz.title}</h2>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ backgroundColor: '#111827', borderRadius: '16px', padding: '16px', border: '1px solid #1e293b' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Live Score</div>
+                <div style={{ fontSize: '2rem', fontWeight: '900', color: 'white', fontFamily: "'PP Mori', sans-serif", letterSpacing: '0.05em' }}>{score * 100}</div>
+              </div>
+              <div style={{ backgroundColor: '#111827', borderRadius: '16px', padding: '16px', border: '1px solid #1e293b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.65rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Progress</span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: '900', color: '#2dd4bf' }}>{currentQuestionIndex + 1}/{shuffledQuestions.length}</span>
+                </div>
+                <div style={{ height: '6px', backgroundColor: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#2dd4bf', boxShadow: '0 0 10px rgba(45,212,191,0.4)', transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
+                </div>
+              </div>
+              <div style={{ backgroundColor: isPerfectSoFar ? 'rgba(45,212,191,0.05)' : 'rgba(239,68,68,0.07)', borderRadius: '16px', padding: '16px', border: `1px solid ${isPerfectSoFar ? '#2dd4bf40' : '#ef444440'}`, position: 'relative', overflow: 'hidden' }}>
+                {!isPerfectSoFar && (<div style={{ position: 'absolute', top: 0, right: 0, padding: '3px 8px', backgroundColor: '#ef4444', color: 'white', fontSize: '0.55rem', fontWeight: '900', letterSpacing: '0.1em', borderBottomLeftRadius: '8px' }}>ALARM</div>)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: isPerfectSoFar ? 0 : '8px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: isPerfectSoFar ? '#2dd4bf' : '#ef4444', boxShadow: `0 0 8px ${isPerfectSoFar ? '#2dd4bf' : '#ef4444'}`, animation: isPerfectSoFar ? 'none' : 'pulse 1s infinite', flexShrink: 0 }} />
+                  <div style={{ fontSize: '0.78rem', fontWeight: '800', color: isPerfectSoFar ? '#2dd4bf' : '#ef4444', letterSpacing: '0.04em' }}>
+                    {isPerfectSoFar ? 'PERFECT RUN ACTIVE' : 'CRITICAL FAILURE'}
+                  </div>
+                </div>
+                {!isPerfectSoFar && (<div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: '600', lineHeight: '1.4' }}>TOKEN REWARD LOCKED. YOU MAY CONTINUE THE MISSION FOR RANK, BUT CANNOT CLAIM TOKENS.</div>)}
+              </div>
+              <div style={{ backgroundColor: 'rgba(59,130,246,0.05)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(59,130,246,0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <div style={{ padding: '4px', borderRadius: '6px', backgroundColor: '#3b82f6', color: 'white', display: 'flex' }}><Bell size={12} /></div>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#3b82f6', textTransform: 'uppercase' }}>Tactical Briefing</span>
+                </div>
+                <p style={{ fontSize: '0.65rem', color: '#94a3b8', margin: 0, lineHeight: '1.5' }}>
+                  Stuck? Use <strong>50/50</strong> or <strong>Lifeline</strong> to remove two decoys. 
+                  Mistakes lock rewards, but the mission continues. Master the data to earn your rank.
+                </p>
+              </div>
+              {isPerfectSoFar && score > 0 && (
+                <div style={{ textAlign: 'center', padding: '14px 16px', backgroundColor: '#111827', borderRadius: '16px', border: '1px solid #1e293b', animation: 'fadeIn 0.4s ease-out' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Accuracy Streak</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                    {[...Array(score)].map((_, i) => (<div key={i} style={{ width: '10px', height: '10px', backgroundColor: '#fbbf24', borderRadius: '2px', boxShadow: '0 0 6px #fbbf24' }} />))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+          {/* Universal Quiz HUD */}
+          <div style={{ 
+            backgroundColor: '#0a0f1e', 
+            borderBottom: '1px solid #1e293b', 
+            padding: isMobile ? '12px 20px' : '16px 40px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            gap: '20px',
+            flexShrink: 0,
+            zIndex: 10
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Exit Quiz Button — always visible */}
+              <button
+                onClick={() => setShowExitModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: isMobile ? '7px 12px' : '8px 16px',
+                  borderRadius: '10px',
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1.5px solid rgba(239,68,68,0.35)',
+                  color: '#ef4444',
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  letterSpacing: '0.04em',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.22)';
+                  e.currentTarget.style.borderColor = '#ef4444';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)';
+                }}
+              >
+                <X size={13} />
+                {!isMobile && 'EXIT QUIZ'}
+              </button>
+              {!isMobile && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2dd4bf', boxShadow: '0 0 8px #2dd4bf' }} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.05em' }}>MISSION ACTIVE</span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, maxWidth: '400px' }}>
+              {!isMobile && <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', whiteSpace: 'nowrap' }}>Q{currentQuestionIndex + 1}/{shuffledQuestions.length}</span>}
+              <div style={{ flex: 1, height: '6px', backgroundColor: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#2dd4bf', boxShadow: '0 0 10px rgba(45,212,191,0.4)', transition: 'width 0.4s' }} />
+              </div>
+              {isMobile && <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf' }}>{currentQuestionIndex + 1}/{shuffledQuestions.length}</span>}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => handleUseLifeline('fiftyFifty')}
+                  disabled={!lifelines.fiftyFifty || isAnswered}
+                  style={{ 
+                    padding: isMobile ? '6px 12px' : '8px 16px', 
+                    borderRadius: '10px', 
+                    backgroundColor: lifelines.fiftyFifty ? 'rgba(45,212,191,0.1)' : 'rgba(30,41,59,0.5)', 
+                    border: `1px solid ${lifelines.fiftyFifty ? '#2dd4bf30' : '#1e293b'}`, 
+                    color: lifelines.fiftyFifty ? '#2dd4bf' : '#475569', 
+                    fontSize: '0.7rem', 
+                    fontWeight: '800', 
+                    cursor: lifelines.fiftyFifty ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Zap size={12} /> 50/50
+                </button>
+                <button 
+                  onClick={() => handleUseLifeline('lifeline')}
+                  disabled={!lifelines.lifeline || isAnswered}
+                  style={{ 
+                    padding: isMobile ? '6px 12px' : '8px 16px', 
+                    borderRadius: '10px', 
+                    backgroundColor: lifelines.lifeline ? 'rgba(168,85,247,0.1)' : 'rgba(30,41,59,0.5)', 
+                    border: `1px solid ${lifelines.lifeline ? '#a855f730' : '#1e293b'}`, 
+                    color: lifelines.lifeline ? '#a855f7' : '#475569', 
+                    fontSize: '0.7rem', 
+                    fontWeight: '800', 
+                    cursor: lifelines.lifeline ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Shield size={12} /> LIFELINE
+                </button>
+              </div>
+              
+              {/* Circular Timer */}
+              <div style={{ position: 'relative', width: '48px', height: '48px', flexShrink: 0 }}>
+                <svg width="48" height="48" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="24" cy="24" r={timerRadius} fill="none" stroke="#1e293b" strokeWidth="3" />
+                  <circle cx="24" cy="24" r={timerRadius} fill="none" stroke={timerColor} strokeWidth="3"
+                    strokeDasharray={timerCircumference} strokeDashoffset={timerDashOffset} strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease', filter: `drop-shadow(0 0 5px ${timerColor})` }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.75rem', fontWeight: '900', color: timerColor, fontFamily: "'PP Mori', sans-serif",
+                  animation: timeLeft <= 5 && !isAnswered ? 'pulse 0.8s infinite' : 'none'
+                }}>{timeLeft}</div>
+              </div>
+              {!isMobile && (
+                <div style={{ textAlign: 'right', minWidth: '80px' }}>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>SCORE</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'white', fontFamily: "'PP Mori', sans-serif" }}>{score * 100}</div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ flex: 1, padding: isMobile ? '24px 16px' : '60px 80px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '100%', maxWidth: '720px' }}>
+              <div style={{ backgroundColor: '#111827', border: '1.5px solid #1e293b', borderRadius: '32px', padding: isMobile ? '24px' : '48px', marginBottom: '32px', position: 'relative' }}>
+                <div style={{ marginBottom: '40px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <span style={{ backgroundColor: '#1e293b', color: '#94a3b8', padding: '6px 16px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800' }}>QUESTION {currentQuestionIndex + 1}</span>
+                    {timedOut && (
+                      <span style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '6px 16px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', border: '1px solid rgba(239,68,68,0.3)' }}>⏰ TIME'S UP!</span>
+                    )}
+                  </div>
+                  <h3 style={{ fontSize: isMobile ? '1.2rem' : '1.6rem', fontWeight: '800', color: 'white', marginTop: '20px', lineHeight: '1.3' }}>{currentQuestion.question}</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {currentQuestion.options.map((opt, idx) => {
+                    const isCorrect = idx === currentQuestion.correct;
+                    const isSelected = selectedOption === idx;
+                    const isHidden = hiddenOptions.includes(idx);
+                    let status = 'default';
+                    if (isAnswered) {
+                      if (isCorrect) status = 'correct';
+                      else if (isSelected) status = 'incorrect';
+                    }
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleOptionSelect(idx)}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '16px', 
+                          padding: '20px 24px', 
+                          borderRadius: '20px', 
+                          border: `2px solid ${status === 'correct' ? '#10b981' : status === 'incorrect' ? '#ef4444' : isSelected ? '#2dd4bf' : '#1e293b'}`, 
+                          backgroundColor: status === 'correct' ? 'rgba(16,185,129,0.1)' : status === 'incorrect' ? 'rgba(239,68,68,0.1)' : isSelected ? 'rgba(45,212,191,0.05)' : '#0f172a', 
+                          cursor: isAnswered || isHidden ? 'default' : 'pointer',
+                          opacity: isHidden ? 0.2 : 1,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: status === 'correct' ? '#10b981' : status === 'incorrect' ? '#ef4444' : isSelected ? '#2dd4bf' : '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '900', color: 'black' }}>
+                          {String.fromCharCode(65 + idx)}
+                        </div>
+                        <span style={{ fontWeight: '600', color: 'white' }}>{opt}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {isAnswered && (
+                <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                  <div style={{ backgroundColor: 'rgba(6,182,212,0.05)', border: '1.5px solid rgba(6,182,212,0.2)', borderRadius: '28px', padding: '32px', marginBottom: '32px', display: 'flex', gap: '20px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '16px', backgroundColor: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Zap size={24} color="#06b6d4" />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#06b6d4', marginBottom: '8px', textTransform: 'uppercase' }}>Intel Report</h4>
+                      <p style={{ fontSize: '1rem', color: '#94a3b8', lineHeight: '1.6' }}>{currentQuestion.explanation}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => nextQuestion()}
+                    style={{ width: '100%', backgroundColor: '#2dd4bf', color: 'black', padding: '20px', borderRadius: '20px', fontWeight: '900', fontSize: '1.1rem', cursor: 'pointer', border: 'none' }}
+                  >
+                    {currentQuestionIndex + 1 === shuffledQuestions.length ? 'FINISH MISSION' : 'NEXT SECTOR'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // All available quizzes flattened into one pool
+  // All available quizzes flattened into one pool removed as it is redundant
+
+  // ── Mission filtering - (Handled specifically in sectors now) ──
+
+
+  // ── Glossary filtering ──
+  const allLetters = ['All', ...new Set(GLOSSARY_TERMS.map(t => t.letter)).values()].sort((a, b) => {
+    if (a === 'All') return -1;
+    if (b === 'All') return 1;
+    return a.localeCompare(b);
+  });
+  let filteredTerms = GLOSSARY_TERMS.filter(t =>
+    t.term.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.definition.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  if (glossaryCategory !== 'All') filteredTerms = filteredTerms.filter(t => t.category === glossaryCategory);
+  if (activeLetter !== 'All') filteredTerms = filteredTerms.filter(t => t.letter === activeLetter);
+
+  // Forum filtering moved to renderForums for scoped use
+
+
+
+  const renderKnowledgeBase = () => {
+    const subTabs = [
+      { id: 'Web3 Basics', label: '1. Basics', icon: '🌐' },
+      { id: 'DAO Knowledge', label: '2. DAO Knowledge', icon: '🏛️' },
+      { id: 'Ecosystem Specific', label: '3. Ecosystem', icon: '🚀' }
+    ];
+
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+        {/* ── Page Header ── */}
+        <div style={{ 
+          backgroundColor: '#0f172a', borderRadius: '32px', 
+          padding: isMobile ? '32px 24px' : '48px 60px', marginBottom: '40px',
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: 'center', justifyContent: 'space-between',
+          gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          {/* Decorative Background Elements */}
+          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', bottom: '-100px', left: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, transparent 70%)', zIndex: 0 }} />
+
+          <div style={{ flex: 1, zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #2dd4bf, transparent)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Intelligence Matrix</span>
+            </div>
+            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Knowledge <span style={{ color: '#2dd4bf' }}>Base</span></h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '520px', marginBottom: '16px' }}>
+              Master Web3 and DAO mechanics through interactive missions. 
+              Earn on-chain rank and claim unique rewards.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', borderRadius: '12px', background: 'rgba(45, 212, 191, 0.08)', border: '1px solid rgba(45, 212, 191, 0.2)', marginBottom: '28px' }}>
+              <span style={{ fontSize: '1.2rem' }}>🎁</span>
+              <span style={{ fontSize: '0.88rem', color: '#2dd4bf', fontWeight: '700' }}>Complete missions and <strong>claim on-chain token rewards</strong> for every sector you master!</span>
+            </div>
+          </div>
+          {!isMobile && (
+            <div style={{ width: '280px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
+              <img 
+                src="/space_duck.png" 
+                alt="Mascot" 
+                className="float-anim"
+                style={{ width: '100%', height: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))', zIndex: 1 }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Sub-Navigation Buttons - Moved outside banner */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '16px', 
+          flexWrap: 'wrap', 
+          marginBottom: '40px',
+          padding: '8px 4px'
+        }}>
+          {subTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setKnowledgeSubTab(tab.id)}
+              style={{
+                backgroundColor: knowledgeSubTab === tab.id ? 'rgba(45, 212, 191, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                color: knowledgeSubTab === tab.id ? '#2dd4bf' : '#94a3b8',
+                padding: '14px 24px',
+                borderRadius: '16px',
+                fontWeight: '800',
+                fontSize: '0.9rem',
+                border: '1.5px solid ' + (knowledgeSubTab === tab.id ? 'rgba(45, 212, 191, 0.3)' : 'rgba(255, 255, 255, 0.06)'),
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: knowledgeSubTab === tab.id ? '0 10px 30px rgba(45, 212, 191, 0.15)' : 'none',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={e => {
+                if (knowledgeSubTab !== tab.id) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={e => {
+                if (knowledgeSubTab !== tab.id) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.color = '#94a3b8';
+                }
+              }}
+            >
+              {knowledgeSubTab === tab.id && (
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#2dd4bf', boxShadow: '0 0 10px #2dd4bf' }} />
+              )}
+              <span style={{ fontSize: '1.1rem' }}>{tab.icon}</span> {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content based on sub-tab */}
+        <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+          {knowledgeSubTab === 'Web3 Basics' && (
+            <div id="web3-basics-sector">
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
+                {web3Quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => (
+                  <div key={i} onClick={() => startQuiz(quiz, 'Web3 Basics')} style={{
+                    backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b', borderRadius: '22px',
+                    padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
+                    display: 'flex', flexDirection: 'column', gap: '14px'
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor='rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🌐'}</div>
+                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'900', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.1em' }}>{quiz.level || 'Beginner'}</div>
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize:'1.15rem', fontWeight:'800', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                      <p style={{ fontSize:'0.88rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                    </div>
+                    <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.78rem', fontWeight:'800' }}>ENTER MISSION <ChevronRight size={13} /></div>
+                      <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {knowledgeSubTab === 'DAO Knowledge' && (
+            <div id="dao-knowledge-sector">
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
+                {daoQuizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => (
+                  <div key={i} onClick={() => startQuiz(quiz, quiz.stage)} style={{
+                    backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b', borderRadius: '22px',
+                    padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
+                    display: 'flex', flexDirection: 'column', gap: '14px'
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor='rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🏛️'}</div>
+                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'900', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.1em' }}>{quiz.level || 'Beginner'}</div>
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize:'1.15rem', fontWeight:'800', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                      <p style={{ fontSize:'0.88rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                    </div>
+                    <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.78rem', fontWeight:'800' }}>ENTER MISSION <ChevronRight size={13} /></div>
+                      <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {knowledgeSubTab === 'Ecosystem Specific' && (
+            <div id="ecosystem-sector">
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
+                {Object.entries(ECOSYSTEM_QUIZZES).flatMap(([slug, quizzes]) => 
+                  quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => {
+                    const eco = ecosystems.find(e => e.slug === slug);
+                    return (
+                      <div key={`${slug}-${i}`} onClick={() => startQuiz(quiz, quiz.stage)} style={{
+                        backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b', borderRadius: '22px',
+                        padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
+                        display: 'flex', flexDirection: 'column', gap: '14px'
+                      }}
+                        onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor='rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ 
+                            width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', 
+                            borderRadius:'14px', display:'flex', alignItems:'center', 
+                            justifyContent:'center', fontSize:'1.8rem', overflow: 'hidden'
+                          }}>
+                            {eco?.logo ? (
+                              <img 
+                                src={eco.logo} 
+                                alt={eco.name} 
+                                style={{ width: '32px', height: '32px', objectFit: 'contain' }}
+                                onError={e => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.innerText = quiz.emoji || '🌐';
+                                }}
+                              />
+                            ) : (
+                              quiz.emoji || '🌐'
+                            )}
+                          </div>
+                          <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'900', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.1em' }}>{quiz.level || 'Intermediate'}</div>
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize:'1.15rem', fontWeight:'800', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                          <p style={{ fontSize:'0.88rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                        </div>
+                        <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.78rem', fontWeight:'800' }}>ENTER MISSION <ChevronRight size={13} /></div>
+                          <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderGlossary = () => {
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+        <div style={{ 
+          backgroundColor: '#ffffff', borderRadius: '24px', 
+          padding: isMobile ? '32px 24px' : '40px 60px', marginBottom: '40px',
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: 'center', justifyContent: 'space-between',
+          gap: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{ flex: 1, zIndex: 1 }}>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#1e293b', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif" }}>Intel Glossary</h2>
+            <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '500px', marginBottom: '32px' }}>
+              Master the terminology of the decentralized world. Search through curated technical terms and governance concepts.
+            </p>
+          </div>
+          {!isMobile && (
+            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <span style={{ fontSize: '8rem', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.1))' }}>📖</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+          {GLOSSARY_CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => { setGlossaryCategory(cat); setActiveLetter('All'); }} style={{
+              padding: '7px 16px', borderRadius: '100px',
+              backgroundColor: glossaryCategory === cat ? (CATEGORY_COLORS[cat] || '#2dd4bf') : 'rgba(255,255,255,0.04)',
+              color: glossaryCategory === cat ? 'black' : '#94a3b8',
+              border: '1px solid ' + (glossaryCategory === cat ? (CATEGORY_COLORS[cat] || '#2dd4bf') : 'rgba(255,255,255,0.08)'),
+              fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+            }}>{cat}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid #1e293b' }}>
+          {allLetters.map(l => (
+            <button key={l} onClick={() => setActiveLetter(l)} style={{
+              width: l === 'All' ? 'auto' : '36px', height: '36px', padding: l === 'All' ? '0 12px' : '0',
+              borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: activeLetter === l ? '#2dd4bf' : 'rgba(255,255,255,0.03)',
+              color: activeLetter === l ? 'black' : '#64748b',
+              border: '1px solid ' + (activeLetter === l ? '#2dd4bf' : 'rgba(255,255,255,0.06)'),
+              fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.18s'
+            }}>{l}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+          {filteredTerms.map((term, i) => (
+            <div key={i} onClick={() => startGlossaryQuiz(term)} style={{
+              backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '20px', padding: '24px',
+              transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)', borderLeft: `4px solid ${CATEGORY_COLORS[term.category] || '#2dd4bf'}`,
+              cursor: 'pointer', position: 'relative', overflow: 'hidden'
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.35)'; e.currentTarget.style.borderColor = '#2dd4bf50'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#1e293b'; }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'white', margin: 0 }}>{term.term}</h3>
+                <span style={{ padding: '3px 10px', borderRadius: '100px', fontSize: '0.65rem', fontWeight: '900', backgroundColor: (CATEGORY_COLORS[term.category] || '#2dd4bf') + '20', color: CATEGORY_COLORS[term.category] || '#2dd4bf' }}>{term.category}</span>
+              </div>
+              <p style={{ fontSize: '0.88rem', color: '#94a3b8', lineHeight: '1.6', margin: 0 }}>{term.definition}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderForums = () => {
+    // ── Forum filtering ──
+    const filteredForums = GOVERNANCE_FORUMS.filter(f =>
+      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+        {/* ── Forum Banner ── */}
+        <div style={{ 
+          backgroundColor: '#ffffff', borderRadius: '24px', 
+          padding: isMobile ? '32px 24px' : '40px 60px', marginBottom: '40px',
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: 'center', justifyContent: 'space-between',
+          gap: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{ flex: 1, zIndex: 1 }}>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#1e293b', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif" }}>Governance Forums</h2>
+            <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '500px', marginBottom: '32px' }}>
+              Explore active governance spaces across the Web3 ecosystem. Read proposals, cast votes, and shape protocol decisions.
+            </p>
+          </div>
+          {!isMobile && (
+            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <span style={{ fontSize: '8rem', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.1))' }}>🏛️</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          {filteredForums.map((forum, i) => (
+            <a key={i} href={forum.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+              <div style={{
+                backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b',
+                borderRadius: '24px', padding: '28px',
+                transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
+                borderTop: `4px solid ${forum.color}`,
+                height: '100%', boxSizing: 'border-box'
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.boxShadow=`0 16px 40px ${forum.color}30`; e.currentTarget.style.borderColor=forum.color + '40'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.borderColor='#1e293b'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ 
+                    width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'white', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                  }}>
+                    <img src={forum.logo} alt={forum.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                      onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.innerHTML = `<span style="font-weight:900;font-size:1.2rem;color:${forum.color}">${forum.fallback}</span>`; }}
+                    />
+                  </div>
+                  <div>
+                    <h3 style={{ color: 'white', fontWeight: '800', fontSize: '1.1rem', margin: 0 }}>{forum.name}</h3>
+                    <span style={{ fontSize: '0.7rem', fontWeight: '800', color: forum.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{forum.category}</span>
+                  </div>
+                </div>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 20px 0' }}>{forum.description}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: forum.color, fontSize: '0.85rem', fontWeight: '900' }}>
+                  Open Forum <ChevronRight size={14} />
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderProfile = () => {
+    const totalScore = Object.values(perfectQuizzes).flat().length * 100;
+    const completedCount = Object.values(perfectQuizzes).flat().length;
+
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+        {/* Profile Banner */}
+        <div style={{ 
+          backgroundColor: '#0f172a', borderRadius: '32px', 
+          padding: isMobile ? '32px 24px' : '48px 60px', marginBottom: '40px',
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: 'center', justifyContent: 'space-between',
+          gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', bottom: '-100px', left: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.05) 0%, transparent 70%)', zIndex: 0 }} />
+          
+          <div style={{ flex: 1, zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #a855f7, transparent)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Agent Profile</span>
+            </div>
+            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Mission <span style={{ color: '#a855f7' }}>Achievements</span></h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '520px', marginBottom: '16px' }}>
+              Review your overall progress, secured sectors, and managed assets across the decentralized frontier.
+            </p>
+          </div>
+          {!isMobile && (
+            <div style={{ width: '160px', height: '160px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyItems: 'center', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)', filter: 'blur(20px)' }} />
+              <div style={{ zIndex: 1, fontSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%', animation: 'float 4s ease-in-out infinite' }}>
+                👤
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+          <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Total Mastery</div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>{totalScore} <span style={{ fontSize: '1rem', color: '#2dd4bf' }}>PTS</span></div>
+          </div>
+          <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Missions Cleared</div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>{completedCount} <span style={{ fontSize: '1rem', color: '#a855f7' }}>SECURED</span></div>
+          </div>
+          <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Current Rank</div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>Field Agent</div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '24px', padding: '40px' }}>
+           <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'white', marginBottom: '24px' }}>Sector Breakthroughs</h3>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+             {categories.filter(c => c !== 'All').map(cat => (
+               <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                   <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: perfectQuizzes[cat]?.length > 0 ? '#2dd4bf20' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: perfectQuizzes[cat]?.length > 0 ? '#2dd4bf' : '#475569' }}>
+                     {cat === 'DAO knowledge' ? <Shield size={20} /> : cat === 'Web3 Basics' ? <Zap size={20} /> : <Globe size={20} />}
+                   </div>
+                   <div>
+                     <div style={{ fontWeight: '800', color: 'white' }}>{cat.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}</div>
+                     <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{perfectQuizzes[cat]?.length || 0} of {stageQuizCounts[cat]} secured</div>
+                   </div>
+                 </div>
+                 <div style={{ height: '8px', width: '120px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${((perfectQuizzes[cat]?.length || 0) / stageQuizCounts[cat]) * 100}%`, backgroundColor: '#2dd4bf' }} />
+                 </div>
+               </div>
+             ))}
+           </div>
+        </div>
+
+        {/* GoodDollar Integration Section Redesigned */}
+        <div style={{ 
+          marginTop: '32px', 
+          backgroundColor: '#0a0f1e', 
+          border: '1.5px solid rgba(0, 195, 174, 0.4)', 
+          borderRadius: '32px', 
+          padding: isMobile ? '32px 24px' : '48px 60px', 
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 20px 80px rgba(0, 195, 174, 0.1)',
+        }}>
+           {/* Decorative Background */ }
+           <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%', background: 'radial-gradient(circle at 100% 50%, rgba(0, 195, 174, 0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+           
+           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '40px', position: 'relative', zIndex: 1 }}>
+             <div style={{ maxWidth: '600px' }}>
+                <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '32px' }}>
+                  Users must verify with GoodDollar before they can claim the reward.
+                </p>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <a 
+                    href="#" 
+                    onClick={handleVerifyIdentity}
+                    style={{ 
+                      padding: '16px 28px', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', color: 'white', 
+                      border: '1px solid rgba(255,255,255,0.1)', fontWeight: '800', textDecoration: 'none', textAlign: 'center', transition: 'all 0.2s',
+                      backdropFilter: 'blur(10px)'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                  >
+                    VERIFY IDENTITY
+                  </a>
+                </div>
+             </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSettings = () => {
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ width: '8px', height: '8px', background: '#2dd4bf', borderRadius: '50%', boxShadow: '0 0 10px #2dd4bf' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Control Center</span>
+          </div>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white', marginBottom: '8px' }}>Terminal <span style={{ color: '#2dd4bf' }}>Config</span></h2>
+          <p style={{ color: '#94a3b8' }}>Customize your simulation experience and security parameters.</p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {[
+            { label: 'Simulator Sound Effects', desc: 'Enable auditory feedback during missions', active: true },
+            { label: 'Tactical Notifications', desc: 'Receive alerts for new governance missions', active: true },
+            { label: 'On-Chain Reward Auto-Claim', desc: 'Automatically prompt wallet for available rewards', active: false },
+            { label: 'Experimental UI Features', desc: 'Enable next-gen holographic interface elements', active: true }
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px', borderRadius: '20px', backgroundColor: '#0a0f1e', border: '1px solid #1e293b' }}>
+              <div>
+                <div style={{ fontWeight: '800', color: 'white', marginBottom: '4px' }}>{item.label}</div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{item.desc}</div>
+              </div>
+              <div style={{ 
+                width: '48px', 
+                height: '24px', 
+                backgroundColor: item.active ? '#2dd4bf' : '#1e293b', 
+                borderRadius: '100px', 
+                position: 'relative', 
+                cursor: 'pointer' 
+              }}>
+                <div style={{ 
+                  position: 'absolute', 
+                  right: item.active ? '4px' : 'auto', 
+                  left: item.active ? 'auto' : '4px', 
+                  top: '4px', 
+                  width: '16px', 
+                  height: '16px', 
+                  backgroundColor: item.active ? 'black' : '#475569', 
+                  borderRadius: '50%' 
+                }} />
+              </div>
+            </div>
+          ))}
+          
+          <button 
+            onClick={disconnectWallet}
+            style={{ 
+              marginTop: '20px',
+              padding: '16px', 
+              borderRadius: '16px', 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              color: '#ef4444', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              fontWeight: '800', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px'
+            }}
+          >
+            <LogOut size={18} /> Disconnect Simulation Session
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderContent = () => {
+    if (activeTab === 'Knowledge Base' || currentView === 'explore') {
+       return renderKnowledgeBase();
+    }
+    if (activeTab === 'Glossary') {
+       return renderGlossary();
+    }
+    if (activeTab === 'Forums') {
+       return renderForums();
+    }
+    if (activeTab === 'Profile') {
+       return renderProfile();
+    }
+    if (activeTab === 'Settings') {
+       return renderSettings();
+    }
+    if (selectedEcosystem && ECOSYSTEM_QUIZZES[selectedEcosystem.slug]) {
+      const topics = ECOSYSTEM_QUIZZES[selectedEcosystem.slug];
+
+      return (
+        <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+          <button 
+            onClick={() => setSelectedEcosystem(null)}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              color: '#64748b', 
+              fontSize: '0.9rem', 
+              fontWeight: '600',
+              marginBottom: '32px',
+              background: 'none',
+              padding: 0
+            }}
+          >
+            <ArrowLeft size={18} /> Back
+          </button>
+
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <div style={{ 
+              width: '48px', 
+              height: '48px', 
+              backgroundColor: selectedEcosystem.color, 
+              borderRadius: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '1.5rem',
+              fontWeight: '800',
+              margin: '0 auto 16px'
+            }}>{selectedEcosystem.icon}</div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>{selectedEcosystem.desc}</h2>
+            <div style={{ 
+              display: 'inline-flex', 
+              padding: '4px 12px', 
+              borderRadius: '100px', 
+              border: '1px solid #e2e8f0', 
+              fontSize: '0.8rem', 
+              color: '#64748b',
+              fontWeight: '600'
+            }}>
+              {topics.length} Learning Topics
+            </div>
+          </div>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', 
+            gap: '24px',
+            marginBottom: '40px'
+          }}>
+            {topics.map((topic, i) => (
+              <div key={i} style={{ position: 'relative' }}>
+                <QuizCard 
+                  {...topic} 
+                  icon={<div style={{ color: selectedEcosystem.color, fontWeight: '800' }}>{selectedEcosystem.icon}</div>}
+                  onClick={() => startQuiz(topic, topic.stage)}
+                />
+                <ChevronRight 
+                  size={18} 
+                  style={{ position: 'absolute', right: '24px', bottom: '24px', color: '#cbd5e1' }} 
+                />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ 
+            backgroundColor: '#0f172a', 
+            border: '1px solid #1e293b', 
+            borderRadius: '20px', 
+            padding: '32px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🎓</span>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white' }}>Mission Objective</h3>
+            </div>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '24px', maxWidth: '600px' }}>
+              Master all {topics.length} sectors to secure your {selectedEcosystem.name} verification. Successful completion required for on-chain rewards.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              {topics.map((t, i) => (
+                <div key={i} style={{ 
+                   padding: '6px 16px', 
+                   borderRadius: '8px', 
+                   backgroundColor: '#1e293b',
+                   border: `1px solid #334155`,
+                   fontSize: '0.8rem',
+                   fontWeight: '700',
+                   color: '#94a3b8'
+                }}>
+                  {t.title}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+
+  const handleBack = () => {
+    if (activeQuiz) {
+      setActiveQuiz(null);
+      setQuizCompleted(false);
+      setCurrentView('selection');
+    } else if (selectedEcosystem) {
+      setSelectedEcosystem(null);
+    } else {
+      onBack();
+    }
+  };
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#050a15',
+      color: 'white',
+      fontFamily: "'PP Mori', sans-serif",
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {isLaunching && <LoadingScreen quiz={launchingQuiz?.quiz} />}
+      {/* Top Navigation Bar */}
+      <header style={{
+        height: '80px',
+        padding: isMobile ? '0 20px' : '0 40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(5, 10, 21, 0.8)',
+        backdropFilter: 'blur(20px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        gap: '40px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '32px', flexShrink: 0 }}>
+          {isMobile && !activeQuiz && (
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}
+            >
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleBack}>
+            <img
+              src="/logo/goodgov _logo2.png"
+              alt="GoodGov"
+              style={{ height: isMobile ? '28px' : '36px', width: 'auto', objectFit: 'contain' }}
+            />
+          </div>
+        </div>
+
+        {/* Global Search Bar */}
+        {!activeQuiz && (
+          <div style={{ position: 'relative', flex: 1, maxWidth: '600px' }}>
+            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+            <input 
+              type="text" 
+              placeholder="Search concepts, protocols, or missions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 18px 12px 48px',
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                border: '1px solid #1e293b',
+                borderRadius: '12px',
+                color: 'white',
+                fontSize: '0.9rem',
+                outline: 'none',
+                transition: 'all 0.3s'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#2dd4bf'}
+              onBlur={(e) => e.target.style.borderColor = '#1e293b'}
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+          {!isLoggedIn ? (
+            <button 
+              onClick={connectWallet}
+              disabled={isConnecting}
+              style={{
+                backgroundColor: '#2dd4bf',
+                color: 'black',
+                padding: '8px 24px',
+                borderRadius: '100px',
+                fontWeight: '900',
+                fontSize: '0.85rem',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {isConnecting ? '...' : 'Connect Wallet'}
+            </button>
+          ) : (
+            <WalletDropdown 
+              address={walletAddress} 
+              authenticated={authenticated} 
+              onLogout={disconnectWallet}
+              onProfile={() => setActiveTab('Profile')}
+            />
+          )}
+        </div>
+      </header>
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Navigation Sidebar */}
+        {!activeQuiz && (isMobile ? isSidebarOpen : true) && (
+          <aside style={{
+            width: isMobile ? '100%' : '280px',
+            position: isMobile ? 'fixed' : 'static',
+            top: '80px',
+            left: 0,
+            bottom: 0,
+            zIndex: 150,
+            backgroundColor: isMobile ? '#0a0f1e' : 'transparent',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+            padding: '32px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '32px',
+            overflowY: 'auto',
+            boxShadow: isMobile ? '20px 0 50px rgba(0,0,0,0.5)' : 'none',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}>
+            <div>
+              <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', marginLeft: '12px', marginBottom: '16px', display: 'block' }}>Operational Hub</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <SidebarItem icon={BookOpen} label="Knowledge Base" active={activeTab === 'Knowledge Base'} onClick={() => { setActiveTab('Knowledge Base'); if(isMobile) setIsSidebarOpen(false); }} />
+                <SidebarItem icon={Book} label="Intel Glossary" active={activeTab === 'Glossary'} onClick={() => { setActiveTab('Glossary'); if(isMobile) setIsSidebarOpen(false); }} />
+                <SidebarItem icon={MessageSquare} label="Governance Forums" active={activeTab === 'Forums'} onClick={() => { setActiveTab('Forums'); if(isMobile) setIsSidebarOpen(false); }} />
+
+                <SidebarItem icon={Settings} label="Simulator Config" active={activeTab === 'Settings'} onClick={() => { setActiveTab('Settings'); if(isMobile) setIsSidebarOpen(false); }} />
+              </div>
+            </div>
+
+            <div>
+              <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', marginLeft: '12px', marginBottom: '16px', display: 'block' }}>Simulation Stats</span>
+              <div style={{ backgroundColor: '#0a0f1e', borderRadius: '20px', padding: '20px', border: '1px solid #1e293b' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>CURRENT RANK</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>Field Agent</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>MASTERY SCORE</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#2dd4bf' }}>{Object.values(perfectQuizzes).flat().length * 100} PTS</div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* Main Content Area */}
+        <main style={{ 
+          flex: 1,
+          overflowY: 'auto',
+          padding: isMobile ? '32px 20px' : '40px 60px',
+          animation: 'fadeIn 0.5s ease-out'
+        }}>
+          {currentView === 'quiz' && activeQuiz ? (
+            renderQuizView()
+          ) : (
+            renderContent()
+          )}
+        </main>
+      </div>
+
+      {/* Global CSS */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; borderRadius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+      `}} />
+    </div>
+  );
+};
+
+export default Dashboard;

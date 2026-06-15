@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 
 /* Small floating orbit node */
 const OrbitNode = ({ icon, angle, label, color }) => {
@@ -40,7 +40,17 @@ const OrbitNode = ({ icon, angle, label, color }) => {
   );
 };
 
-const Hero = () => {
+const Hero = ({ onStart }) => {
+  const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
+
+  React.useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 768;
+
   return (
     <section id="hero" style={{
       minHeight: '100vh',
@@ -50,26 +60,26 @@ const Hero = () => {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Background glows */}
+      {/* Background glowing effects */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 0,
+        backgroundColor: '#050a15',
         background: `
-          radial-gradient(ellipse 80% 60% at 70% 40%, rgba(45,212,191,0.08) 0%, transparent 60%),
-          radial-gradient(ellipse 60% 50% at 20% 80%, rgba(168,85,247,0.07) 0%, transparent 60%),
-          radial-gradient(ellipse 50% 40% at 50% 10%, rgba(59,130,246,0.06) 0%, transparent 50%)
+          radial-gradient(ellipse 60% 60% at 70% 30%, rgba(45,212,191,0.08) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 50% at 20% 70%, rgba(168,85,247,0.06) 0%, transparent 60%)
         `,
         pointerEvents: 'none',
       }} />
 
-      {/* Subtle dot grid */}
+      {/* Grid overlay */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 0,
-        backgroundImage: 'radial-gradient(rgba(255,255,255,0.035) 1px, transparent 0)',
-        backgroundSize: '32px 32px',
+        backgroundImage: 'radial-gradient(rgba(45,212,191,0.05) 1px, transparent 0)',
+        backgroundSize: '40px 40px',
         pointerEvents: 'none',
       }} />
 
-      <div className="container" style={{
+      <div className="container responsive-grid" style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: '4rem',
@@ -77,74 +87,92 @@ const Hero = () => {
         position: 'relative',
         zIndex: 1,
         padding: '3.5rem 5%',
+
       }}>
+
         {/* ── Left: copy ── */}
         <div>
 
-          <h1 style={{
-            fontSize: 'clamp(2.4rem, 5vw, 4rem)',
-            fontWeight: '800',
-            letterSpacing: '-0.03em',
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '8px 16px',
+            background: 'rgba(45, 212, 191, 0.1)',
+            border: '1.5px solid rgba(45, 212, 191, 0.2)',
+            borderRadius: '100px',
             marginBottom: '1.5rem',
-            lineHeight: '1.15',
+            fontSize: '0.8rem',
+            fontWeight: '800',
+            color: '#2dd4bf',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em'
           }}>
-            <span className="gradient-text">Learn Web3,</span> One Quiz at a Time
+            <span style={{ fontSize: '1.1rem' }}>🎓</span>
+            Gamified Web3 Learning
+          </div>
+
+          <h1 style={{
+            fontSize: 'clamp(2.5rem, 5vw, 4.5rem)',
+            fontWeight: '900',
+            letterSpacing: '-0.04em',
+            marginBottom: '1.5rem',
+            lineHeight: '1.05',
+            color: 'white'
+          }}>
+            Master the Frontiers of <span style={{ color: '#2dd4bf' }}>Web3</span>
           </h1>
 
           <p style={{
-            fontSize: '1.15rem',
-            color: 'var(--text-muted)',
-            maxWidth: '500px',
-            marginBottom: '2.5rem',
-            lineHeight: '1.7',
+            fontSize: '1.25rem',
+            color: '#94a3b8',
+            maxWidth: '520px',
+            marginBottom: '3rem',
+            lineHeight: '1.6',
+            fontWeight: '500'
           }}>
-            Master decentralized governance and Web3 concepts through
-            bite-sized quizzes, and earn <strong style={{ color: 'var(--text-main)' }}>token</strong> rewards as you learn.
+            Master Web3 and DAO mechanics through interactive missions. 
+            Earn on-chain rank and claim unique rewards.
           </p>
 
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <button id="hero-cta-primary" className="btn-primary" style={{
-              padding: '1rem 2.5rem',
-              fontSize: '1rem',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}>
-              Start Learning
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-            <a 
-              id="hero-cta-secondary" 
-              className="btn-outline" 
-              href="https://discourse.gooddollar.org" 
-              target="_blank" 
-              rel="noopener noreferrer"
+          <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', justifyContent: 'inherit' }}>
+            <button 
+              id="hero-cta-primary" 
+              className="btn-primary" 
+              onClick={onStart}
               style={{
-                padding: '1rem 2.5rem',
-                fontSize: '1rem',
-                borderRadius: '12px',
-                textDecoration: 'none',
-                display: 'inline-block'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer'
               }}
             >
-              Our Ecosystem ↗
-            </a>
+              Play Now
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
           </div>
 
           {/* Stats row */}
-          <div style={{ display: 'flex', gap: '2.5rem', marginTop: '3rem' }}>
-            {[['100+', 'Learners'], ['20+', 'Quizzes'], ['10+', 'DAOs Covered']].map(([num, label]) => (
+          <div className="mobile-hide" style={{ display: 'flex', gap: '3.5rem', marginTop: '4rem' }}>
+            {[['1,240+', 'Active Agents'], ['34+', 'Deployed Missions'], ['10+', 'Secured Protocols']].map(([num, label]) => (
               <div key={label}>
-                <div style={{ fontSize: '1.5rem', fontWeight: '700', fontFamily: 'PP Mori, sans-serif', color: 'var(--primary)' }}>{num}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{label}</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'white', letterSpacing: '-0.02em' }}>{num}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>{label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* ── Right: visual ── */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', height: '460px' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          position: 'relative', 
+          height: isMobile ? '360px' : '460px',
+          marginTop: isMobile ? '2rem' : '0'
+        }}>
+
           {/* Spinning dashed ring */}
           <div style={{
             position: 'absolute',
@@ -179,9 +207,9 @@ const Hero = () => {
             zIndex: 3,
             animation: 'float 4s ease-in-out infinite',
           }}>
-            <div style={{ fontSize: '2.5rem' }}>🏛️</div>
+            <div style={{ fontSize: '2.5rem' }}>🌐</div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'white' }}>Governance</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'white' }}>Web3 Mastery</div>
               <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', marginTop: '4px' }}>
                 {[1,2,3,4].map(i => (
                   <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: i <= 3 ? 'var(--primary)' : 'var(--glass-border)' }} />
@@ -191,10 +219,10 @@ const Hero = () => {
           </div>
 
           {/* Orbit nodes */}
-          <OrbitNode icon="🗳️" angle={-90} label="Voting" color="#3b82f6" />
-          <OrbitNode icon="💰" angle={0}   label="Treasury" color="#f59e0b" />
-          <OrbitNode icon="⛓️" angle={90}  label="Proposals" color="#a855f7" />
-          <OrbitNode icon="🎓" angle={180} label="Learning" color="#2dd4bf" />
+          <OrbitNode icon="💰" angle={-90} label="DeFi" color="#3b82f6" />
+          <OrbitNode icon="🛡️" angle={0}   label="Security" color="#f59e0b" />
+          <OrbitNode icon="🏛️" angle={90}  label="Governance" color="#a855f7" />
+          <OrbitNode icon="🖼️" angle={180} label="NFTS" color="#2dd4bf" />
         </div>
       </div>
     </section>
