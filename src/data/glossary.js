@@ -179,7 +179,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://gov.uniswap.org',
     description: 'Discussions and proposals for the Uniswap protocol and UNI treasury.',
     category: 'DeFi',
-    logo: 'https://raw.githubusercontent.com/Uniswap/brand-assets/main/Uniswap%20Brand%20Assets/Logos/uniswap-uni-logo.svg',
+    logo: 'https://cryptologos.cc/logos/uniswap-uni-logo.svg?v=025',
     fallback: 'U',
     color: '#ff007a'
   },
@@ -188,7 +188,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://www.comp.xyz',
     description: 'Community forum for COMP holders to discuss and vote on Compound protocol changes.',
     category: 'DeFi',
-    logo: 'https://raw.githubusercontent.com/compound-finance/compound-protocol/master/logo.png',
+    logo: 'https://assets.coingecko.com/coins/images/10775/standard/COMP.png',
     fallback: 'C',
     color: '#00d395'
   },
@@ -197,7 +197,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://governance.aave.com',
     description: 'The governance hub for the Aave lending and borrowing protocol.',
     category: 'DeFi',
-    logo: 'https://raw.githubusercontent.com/aave/v3-core/master/logo.svg',
+    logo: 'https://assets.coingecko.com/coins/images/12645/standard/AAVE.png',
     fallback: 'A',
     color: '#b6509e'
   },
@@ -206,7 +206,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://discuss.ens.domains',
     description: 'Governance discussions for the Ethereum Name Service DAO.',
     category: 'Infrastructure',
-    logo: 'https://raw.githubusercontent.com/ensdomains/media-kit/main/Logos/ENS_Logo_Symbol_Color.svg',
+    logo: 'https://cryptologos.cc/logos/ethereum-name-service-ens-logo.svg?v=025',
     fallback: 'E',
     color: '#5298ff'
   },
@@ -215,7 +215,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://gov.optimism.io',
     description: 'Forum for the Optimism Collective — governing the OP Stack and ecosystem grants.',
     category: 'Layer 2',
-    logo: 'https://raw.githubusercontent.com/ethereum-optimism/brand-assets/main/logos/op-logo.svg',
+    logo: 'https://assets.coingecko.com/coins/images/25244/standard/Optimism.png',
     fallback: 'O',
     color: '#ff0420'
   },
@@ -224,7 +224,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://forum.arbitrum.foundation',
     description: 'Governance hub for the Arbitrum DAO, managing the ARB treasury and protocol upgrades.',
     category: 'Layer 2',
-    logo: 'https://raw.githubusercontent.com/OffchainLabs/brand-assets/main/arbitrum-logo.svg',
+    logo: 'https://cryptologos.cc/logos/arbitrum-arb-logo.svg?v=025',
     fallback: 'Ar',
     color: '#28a0f0'
   },
@@ -242,7 +242,7 @@ export const GOVERNANCE_FORUMS = [
     url: 'https://forum.celo.org',
     description: 'Governance forum for the Celo blockchain — a mobile-first, carbon-negative L1.',
     category: 'Layer 1',
-    logo: 'https://raw.githubusercontent.com/celo-org/branding/master/Celo-Logo-Color.svg',
+    logo: 'https://celo-org.github.io/celo-token-list/assets/celo_logo.svg',
     fallback: 'Ce',
     color: '#fbcc5c'
   },

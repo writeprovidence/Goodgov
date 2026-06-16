@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 import { 
@@ -33,7 +33,7 @@ const GOODWALLET_URL = "https://wallet.gooddollar.org";
 
 
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, style = {} }) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <div 
     onClick={onClick}
     style={{
@@ -48,8 +48,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, style = {} }) => (
       transition: 'all 0.2s ease',
       marginBottom: '4px',
       fontWeight: active ? '700' : '500',
-      border: active ? '1px solid rgba(45, 212, 191, 0.2)' : '1px solid transparent',
-      ...style
+      border: active ? '1px solid rgba(45, 212, 191, 0.2)' : '1px solid transparent'
     }}
     onMouseEnter={(e) => {
       if (!active) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
@@ -83,7 +82,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
   const [score, setScore] = useState(0);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
@@ -97,8 +95,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const walletAddress = user?.wallet?.address;
   const isLoggedIn = authenticated;
   const isConnecting = false; // Privy handles connection state internally
-  const [isClaiming, setIsClaiming] = useState(false);
-  const [claimStatus, setClaimStatus] = useState(null);
 
   const handleVerifyIdentity = async (e) => {
     e.preventDefault();
@@ -134,15 +130,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [knowledgeSubTab, setKnowledgeSubTab] = useState('Web3 Basics');
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchingQuiz, setLaunchingQuiz] = useState(null);
-  const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => localStorage.getItem('quiz_rewards_contract') || "");
-  const mainContentRef = useRef(null);
-
-  // Scroll main content to top whenever the active tab changes
-  useEffect(() => {
-    if (mainContentRef.current) {
-      mainContentRef.current.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [activeTab]);
 
   const startQuiz = useCallback((quiz, stage) => {
     if (!quiz.questions || quiz.questions.length === 0) return;
@@ -192,7 +179,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [completedStages, setCompletedStages] = useState(() => {
     const saved = localStorage.getItem('goodgov_completed_stages');
     return saved ? JSON.parse(saved) : {
-      'Mastery Challenges': false,
       'DAO knowledge': false,
       'Ecosystem specific': false,
       'Web3 Basics': false,
@@ -201,7 +187,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [perfectQuizzes, setPerfectQuizzes] = useState(() => {
     const saved = localStorage.getItem('goodgov_perfect_quizzes');
     return saved ? JSON.parse(saved) : {
-      'Mastery Challenges': [],
       'DAO knowledge': [],
       'Ecosystem specific': [],
       'Web3 Basics': [],
@@ -211,7 +196,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [claimedRewards] = useState(() => {
     const saved = localStorage.getItem('goodgov_claimed_rewards');
     return saved ? JSON.parse(saved) : {
-      'Mastery Challenges': false,
       'DAO knowledge': false,
       'Ecosystem specific': false,
       'Web3 Basics': false,
@@ -261,10 +245,9 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   // Auto-mark answered when timer expires
   useEffect(() => {
     if (timeLeft === 0 && currentView === 'quiz' && !isAnswered && !quizCompleted) {
-      const timer = setTimeout(() => {
-        setIsAnswered(true);
-        setTimeout(() => setShowPopup(true), 1500);
-      }, 0);
+      // Use a timeout to move the state update out of the synchronous render/effect cycle
+      // specifically to satisfy strict linting rules regarding cascading renders.
+      const timer = setTimeout(() => setIsAnswered(true), 0);
       return () => clearTimeout(timer);
     }
   }, [timeLeft, currentView, isAnswered, quizCompleted]);
@@ -274,10 +257,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   // Redundant tab reset effect removed to fix sidebar navigation functionality
 
   const stageQuizCounts = { 
-    'Mastery Challenges': [
-      ...daoQuizzes,
-      ...web3Quizzes,
-    ].filter(q => q.questions && q.questions.length >= 20).length,
     'DAO knowledge': daoQuizzes.length, 
     'Ecosystem specific': Object.values(ECOSYSTEM_QUIZZES).flat().length, 
     'Web3 Basics': web3Quizzes.length 
@@ -290,10 +269,10 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const ecosystems = [
     { name: 'GoodDollar', icon: 'G', logo: '/gooddollar-logo.svg', color: '#00c3ae', desc: 'A multi-chain system that sustainably funds UBI at scale.', slug: 'gooddollar' },
     { name: 'Zksync', icon: 'ZK', logo: 'https://www.zksync.io/brand/zksync-logo/zksync-logomark-light-transparent.svg', color: '#4c57d8', desc: 'Zero-Knowledge rollups for Ethereum scaling.', slug: 'zksync' },
-    { name: 'Celo', icon: 'C', logo: 'https://celo-org.github.io/celo-token-list/assets/celo_logo.svg', color: '#fbcc5c', desc: 'Mobile-first blockchain for financial inclusion.', slug: 'celo' },
+    { name: 'Celo', icon: 'C', logo: 'https://raw.githubusercontent.com/celo-org/branding/master/Celo-Logo-Color.svg', color: '#fbcc5c', desc: 'Mobile-first blockchain for financial inclusion.', slug: 'celo' },
     { name: 'Optimism', icon: 'OP', logo: 'https://raw.githubusercontent.com/ethereum-optimism/brand-assets/main/logos/op-logo.svg', color: '#ff0420', desc: 'Layer 2 blockchain that scales Ethereum.', slug: 'optimism' },
     { name: 'Arbitrum', icon: 'A', logo: 'https://raw.githubusercontent.com/OffchainLabs/brand-assets/main/arbitrum-logo.svg', color: '#28a0f0', desc: 'Leading optimistic rollup for Ethereum.', slug: 'arbitrum' },
-    { name: 'ENS', icon: '◇', logo: 'https://raw.githubusercontent.com/ensdomains/media-kit/main/Logos/ENS_Logo_Symbol_Color.svg', color: '#5298ff', desc: 'Turns wallet addresses into human-readable names.', slug: 'ens' },
+    { name: 'ENS', icon: 'Γùç', logo: 'https://raw.githubusercontent.com/ensdomains/media-kit/main/Logos/ENS_Logo_Symbol_Color.svg', color: '#5298ff', desc: 'Turns wallet addresses into human-readable names.', slug: 'ens' },
   ];
 
 
@@ -307,83 +286,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const disconnectWallet = () => {
     logout();
     setCurrentView('explore');
-  };
-
-  const handleDirectClaim = async () => {
-    if (!walletAddress) {
-      login();
-      return;
-    }
-    
-    setIsClaiming(true);
-    setClaimStatus(null);
-    
-    // Check if we have a QuizRewards contract address for Smart Claim
-    const QUIZ_REWARDS_ADDRESS = localStorage.getItem('quiz_rewards_contract') || "";
-
-    try {
-      if (QUIZ_REWARDS_ADDRESS) {
-        // --- Smart Claim Mode (Contract Based) ---
-        console.log("Using Smart Claim via contract:", QUIZ_REWARDS_ADDRESS);
-        
-        // 1. Get signature from server
-        const sigRes = await fetch('http://127.0.0.1:3001/api/sign-reward', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userAddress: walletAddress,
-            quizId: activeQuiz?.title || 'Grand Master Quiz',
-            amount: 10
-          })
-        });
-        
-        const sigData = await sigRes.json();
-        if (!sigRes.ok) throw new Error(sigData.error || 'Failed to get signature');
-
-        // 2. Execute contract call
-        const eip1193provider = await wallets[0].getEthereumProvider();
-        const provider = new ethers.providers.Web3Provider(eip1193provider);
-        const signer = provider.getSigner();
-        
-        const contract = new ethers.Contract(
-          QUIZ_REWARDS_ADDRESS,
-          [
-            "function claimReward(string memory quizId, uint256 amount, bytes memory signature) external",
-            "function hasClaimed(address user, string memory quizId) view returns (bool)"
-          ],
-          signer
-        );
-
-        const tx = await contract.claimReward(sigData.quizId, sigData.amount, sigData.signature);
-        setClaimStatus({ success: true, message: "Transaction submitted! Waiting for confirmation..." });
-        
-        await tx.wait();
-        setClaimStatus({ success: true, message: "Successfully claimed 10 G$ on-chain!" });
-
-      } else {
-        // --- Direct Transfer mode ---
-        const res = await fetch('http://127.0.0.1:3001/api/claim-reward', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userAddress: walletAddress,
-            quizId: activeQuiz?.title || 'Grand Master Quiz',
-            amount: 10 
-          })
-        });
-        
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to claim reward');
-        
-        setClaimStatus({ success: true, message: data.message });
-      }
-      
-    } catch (err) {
-      console.error(err);
-      setClaimStatus({ success: false, message: err.message });
-    } finally {
-      setIsClaiming(false);
-    }
   };
 
 
@@ -404,7 +306,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       question: `What is the true and complete definition of "${targetTerm.term}"?`,
       options: [targetTerm.definition, ...distractors1.map(d => d.definition)],
       correct: 0,
-      explanation: `The full definition of ${targetTerm.term} is: ${targetTerm.definition}`
+      explanation: `ACCURACY RECOVERY: The true definition of ${targetTerm.term} is: ${targetTerm.definition}`
     };
 
     // Question 2: Category association
@@ -425,7 +327,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         question: `Identify the true definition for the related term: "${t.term}"`,
         options: [t.definition, ...dist.map(d => d.definition)],
         correct: 0,
-        explanation: `${t.term} correctly means: ${t.definition}`
+        explanation: `INTEL VERIFIED: ${t.term} correctly means: ${t.definition}`
       };
     });
 
@@ -464,9 +366,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     if (index === shuffledQuestions[currentQuestionIndex].correct) {
       setScore(s => s + 1);
     }
-    setTimeout(() => {
-      setShowPopup(true);
-    }, 1500);
   };
 
   const nextQuestion = () => {
@@ -475,13 +374,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       setCurrentQuestionIndex(nextIndex);
       setSelectedOption(null);
       setIsAnswered(false);
-      setShowPopup(false);
       setHiddenOptions([]);
       setTimeLeft(30);
     } else {
       setQuizCompleted(true);
       const isPerfect = score === shuffledQuestions.length;
-      if (isLoggedIn && isPerfect && activeQuizStage && activeQuizStage !== 'Knowledge Base') {
+      if (isPerfect && activeQuizStage && activeQuizStage !== 'Knowledge Base') {
         setPerfectQuizzes(prev => {
           const currentStageQuizzes = prev[activeQuizStage] || [];
           // Only add if not already present to ensure unique quiz completion
@@ -490,8 +388,8 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             const updated = { ...prev, [activeQuizStage]: updatedQuizzes };
             
             // Check if stage is now complete
-            const requiredCount = stageQuizCounts[activeQuizStage] || 1;
-            if (updatedQuizzes.length >= requiredCount) {
+            const required = stageQuizCounts[activeQuizStage];
+            if (updatedQuizzes.length >= required) {
               setCompletedStages(cs => ({ ...cs, [activeQuizStage]: true }));
             }
             return updated;
@@ -533,7 +431,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         return (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ maxWidth: '480px', width: '100%', textAlign: 'center', animation: 'fadeIn 0.5s ease-out' }}>
-              <div style={{ fontSize: '5rem', marginBottom: '24px' }}>📊</div>
+              <div style={{ fontSize: '5rem', marginBottom: '24px' }}>≡ƒôè</div>
               <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '16px' }}>Intelligence Check Complete</h2>
               <div style={{ backgroundColor: '#0f172a', border: '1.5px solid #1e293b', borderRadius: '24px', padding: '40px', marginBottom: '32px' }}>
                 <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Final Score</div>
@@ -555,41 +453,41 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', overflowY: 'auto' }}>
           <div style={{ maxWidth: '620px', margin: '60px auto', textAlign: 'center' }}>
             <div style={{ fontSize: '5rem', marginBottom: '24px', animation: 'float 3s ease-in-out infinite' }}>
-              {isPerfectRun ? '🏆' : '🎮'}
+              {isPerfectRun ? '≡ƒÅå' : '≡ƒÄ«'}
             </div>
             <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px', letterSpacing: '-0.02em' }}>
               {isPerfectRun ? 'Perfect Victory!' : 'Mission Failed'}
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '32px' }}>
-              {activeQuiz.title} — Score: <strong style={{ color: 'white' }}>{score}/{shuffledQuestions.length}</strong>
+              {activeQuiz.title} ΓÇö Score: <strong style={{ color: 'white' }}>{score}/{shuffledQuestions.length}</strong>
             </p>
 
             <div style={{ backgroundColor: '#0f172a', border: '1.5px solid #1e293b', borderRadius: '24px', padding: '28px', marginBottom: '28px', textAlign: 'left' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px' }}>Token Claim Progress</div>
-              {[['Mastery Challenges', '🏆'], ['Web3 Basics', '🌐'], ['DAO knowledge', '🏛️'], ['Ecosystem specific', '🌱']].map(([stage, icon]) => (
+              {[['Web3 Basics', '≡ƒîÉ'], ['DAO knowledge', '≡ƒÅ¢∩╕Å'], ['Ecosystem specific', '≡ƒî▒']].map(([stage, icon]) => (
                 <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '16px', marginBottom: '12px', backgroundColor: completedStages[stage] ? 'rgba(45,212,191,0.07)' : 'transparent', border: `1.5px solid ${completedStages[stage] ? '#2dd4bf40' : '#1e293b'}` }}>
                   <div style={{ fontSize: '1.4rem' }}>{icon}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontWeight: '700', color: completedStages[stage] ? '#2dd4bf' : '#94a3b8', fontSize: '0.95rem' }}>{stage}</div>
                       <div style={{ fontSize: '0.75rem', fontWeight: '800', color: completedStages[stage] ? '#2dd4bf' : '#64748b' }}>
-                        {perfectQuizzes[stage]?.length || 0}/{stageQuizCounts[stage] || 1}
+                        {perfectQuizzes[stage]?.length || 0}/{stageQuizCounts[stage]}
                       </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{completedStages[stage] ? 'Completed with Mastery' : 'In Progress'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{completedStages[stage] ? 'Completed with 100% accuracy' : 'In Progress'}</div>
                   </div>
-                  <div style={{ fontSize: '1.2rem' }}>{completedStages[stage] ? '✅' : '🔒'}</div>
+                  <div style={{ fontSize: '1.2rem' }}>{completedStages[stage] ? 'Γ£à' : '≡ƒöÆ'}</div>
                 </div>
               ))}
             </div>
 
             {isPerfectRun ? (
               <div style={{ padding: '18px', borderRadius: '14px', backgroundColor: 'rgba(45, 212, 191, 0.07)', border: '1px solid rgba(45, 212, 191, 0.2)', marginBottom: '20px', color: '#2dd4bf', fontSize: '0.9rem', fontWeight: '600' }}>
-                ✅ Stage cleared with 100% accuracy!
+                Γ£à Stage cleared with 100% accuracy!
               </div>
             ) : (
               <div style={{ padding: '18px', borderRadius: '14px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '20px', color: '#ef4444', fontSize: '0.9rem', fontWeight: '600' }}>
-                ⚠️ Mission Failed. Token rewards for this stage remain locked.
+                ΓÜá∩╕Å Mission Failed. Token rewards for this stage remain locked.
               </div>
             )}
 
@@ -603,39 +501,29 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 </button>
               )}
 
-              {isPerfectRun && shuffledQuestions.length === 20 && (
+              {isPerfectRun && (
                 <div style={{ marginTop: '12px', padding: '20px', borderRadius: '16px', background: 'rgba(45, 212, 191, 0.1)', border: '1.5px solid rgba(45, 212, 191, 0.3)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>💰</div>
-                  <div style={{ fontWeight: '800', color: '#2dd4bf', marginBottom: '4px' }}>Perfect Mastery Achieved!</div>
-                  <p style={{ fontSize: '0.9rem', color: '#94a3b8', margin: '0 0 16px 0' }}>
-                    Outstanding! You've answered all 20 questions correctly in this Mastery Mission. Claim your 10 G$ reward below.
-                  </p>
-                  
-                  {claimStatus ? (
-                     <div style={{ padding: '12px', borderRadius: '10px', background: claimStatus.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${claimStatus.success ? '#10b981' : '#ef4444'}`, color: claimStatus.success ? '#10b981' : '#ef4444', fontSize: '0.85rem', fontWeight: '700' }}>
-                       {claimStatus.success ? '🎉 ' : '⚠️ '}{claimStatus.message}
-                     </div>
-                  ) : (
-                    <button 
-                      onClick={handleDirectClaim}
-                      disabled={isClaiming}
-                      style={{ 
-                        width: '100%', padding: '14px 20px', borderRadius: '12px', 
-                        background: isClaiming ? '#64748b' : 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                        color: 'black', fontWeight: '800', border: 'none',
-                        cursor: isClaiming ? 'wait' : 'pointer', fontSize: '0.95rem',
-                        boxShadow: '0 4px 14px rgba(45, 212, 191, 0.3)'
-                      }}
-                    >
-                      {isClaiming ? 'Transferring 10 G$...' : 'Deposit 10 G$ to my Wallet'}
-                    </button>
-                  )}
+                  <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>≡ƒÆ░</div>
+                  <div style={{ fontWeight: '800', color: '#2dd4bf', marginBottom: '4px' }}>G$ Reward Available</div>
+                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 16px 0' }}>You've earned mission rewards! Ensure you are GoodDollar verified to claim.</p>
+                  <a 
+                    href={GOODDAPP_URL} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      display: 'inline-block', padding: '10px 20px', borderRadius: '10px', 
+                      background: '#2dd4bf', color: 'black', fontWeight: '800', 
+                      fontSize: '0.9rem', textDecoration: 'none' 
+                    }}
+                  >
+                    VERIFY & CLAIM G$
+                  </a>
                 </div>
               )}
 
               {allStagesComplete && isPerfectRun && (
                 <button style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.3)' }}>
-                  🪙 Claim Grand Master Token
+                  ≡ƒ¬Ö Claim Grand Master Token
                 </button>
               )}
             </div>
@@ -666,7 +554,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       setScore(0);
       setSelectedOption(null);
       setIsAnswered(false);
-      setShowPopup(false);
       setCurrentView('selection');
     };
 
@@ -691,7 +578,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               textAlign: 'center',
               boxShadow: '0 24px 80px rgba(0,0,0,0.5)'
             }}>
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⚠️</div>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>ΓÜá∩╕Å</div>
               <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'white', marginBottom: '12px' }}>
                 Abort Mission?
               </h3>
@@ -795,7 +682,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             zIndex: 10
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {/* Exit Quiz Button — always visible */}
+              {/* Exit Quiz Button ΓÇö always visible */}
               <button
                 onClick={() => setShowExitModal(true)}
                 style={{
@@ -912,7 +799,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <span style={{ backgroundColor: '#1e293b', color: '#94a3b8', padding: '6px 16px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800' }}>QUESTION {currentQuestionIndex + 1}</span>
                     {timedOut && (
-                      <span style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '6px 16px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', border: '1px solid rgba(239,68,68,0.3)' }}>⏰ TIME'S UP!</span>
+                      <span style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '6px 16px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '800', border: '1px solid rgba(239,68,68,0.3)' }}>ΓÅ░ TIME'S UP!</span>
                     )}
                   </div>
                   <h3 style={{ fontSize: isMobile ? '1.2rem' : '1.6rem', fontWeight: '800', color: 'white', marginTop: '20px', lineHeight: '1.3' }}>{currentQuestion.question}</h3>
@@ -941,8 +828,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                           backgroundColor: status === 'correct' ? 'rgba(16,185,129,0.1)' : status === 'incorrect' ? 'rgba(239,68,68,0.1)' : isSelected ? 'rgba(45,212,191,0.05)' : '#0f172a', 
                           cursor: isAnswered || isHidden ? 'default' : 'pointer',
                           opacity: isHidden ? 0.2 : 1,
-                          transition: 'all 0.2s',
-                          animation: (isAnswered && isCorrect && !showPopup) ? 'blink-correct 0.25s ease-in-out infinite alternate' : 'none'
+                          transition: 'all 0.2s'
                         }}
                       >
                         <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: status === 'correct' ? '#10b981' : status === 'incorrect' ? '#ef4444' : isSelected ? '#2dd4bf' : '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '900', color: 'black' }}>
@@ -954,77 +840,24 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   })}
                 </div>
               </div>
-              {showPopup && (
-                <>
-                  <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 10, 21, 0.4)', zIndex: 1999, animation: 'fadeIn 0.3s ease-out', backdropFilter: 'blur(3px)' }} />
-                  <div style={{
-                    position: 'fixed',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: isMobile ? 'calc(100% - 32px)' : '600px',
-                    maxHeight: '85vh',
-                    overflowY: 'auto',
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    backdropFilter: 'blur(24px)',
-                    WebkitBackdropFilter: 'blur(24px)',
-                    border: '1px solid rgba(45, 212, 191, 0.3)',
-                    borderRadius: '32px',
-                    padding: isMobile ? '28px' : '40px',
-                    zIndex: 2000,
-                    boxShadow: '0 20px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05)',
-                    animation: 'popUpCenter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '24px'
-                  }}>
-                    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-                      <div style={{ 
-                        width: '64px', height: '64px', borderRadius: '20px', 
-                        backgroundColor: 'rgba(45, 212, 191, 0.1)', 
-                        border: '1px solid rgba(45, 212, 191, 0.2)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        boxShadow: '0 0 30px rgba(45, 212, 191, 0.15)'
-                      }}>
-                        <Zap size={32} color="#2dd4bf" />
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                        <div style={{ 
-                          width: '100%',
-                          padding: '24px', 
-                          backgroundColor: 'rgba(255, 255, 255, 0.03)', 
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          borderRadius: '16px' 
-                        }}>
-                          <span style={{ display: 'block', fontSize: '0.8rem', color: '#2dd4bf', fontWeight: '800', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Mission Intel</span>
-                          <p style={{ fontSize: '1.1rem', color: '#e2e8f0', lineHeight: '1.6', margin: 0, fontWeight: '400' }}>
-                            {currentQuestion.explanation}
-                          </p>
-                        </div>
-                      </div>
+              {isAnswered && (
+                <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                  <div style={{ backgroundColor: 'rgba(6,182,212,0.05)', border: '1.5px solid rgba(6,182,212,0.2)', borderRadius: '28px', padding: '32px', marginBottom: '32px', display: 'flex', gap: '20px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '16px', backgroundColor: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Zap size={24} color="#06b6d4" />
                     </div>
-                    <button
-                      onClick={() => nextQuestion()}
-                      style={{ 
-                        width: '100%', 
-                        background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)',
-                        color: 'black', 
-                        padding: '18px', 
-                        borderRadius: '20px', 
-                        fontWeight: '800', 
-                        fontSize: '0.95rem', 
-                        cursor: 'pointer', 
-                        border: 'none',
-                        boxShadow: '0 8px 24px rgba(45, 212, 191, 0.25)',
-                        transition: 'transform 0.2s, box-shadow 0.2s'
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(45, 212, 191, 0.35)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(45, 212, 191, 0.25)'; }}
-                    >
-                      {currentQuestionIndex + 1 === shuffledQuestions.length ? 'Finish mission' : 'Continue to next question'} →
-                    </button>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#06b6d4', marginBottom: '8px', textTransform: 'uppercase' }}>Intel Report</h4>
+                      <p style={{ fontSize: '1rem', color: '#94a3b8', lineHeight: '1.6' }}>{currentQuestion.explanation}</p>
+                    </div>
                   </div>
-                </>
+                  <button
+                    onClick={() => nextQuestion()}
+                    style={{ width: '100%', backgroundColor: '#2dd4bf', color: 'black', padding: '20px', borderRadius: '20px', fontWeight: '900', fontSize: '1.1rem', cursor: 'pointer', border: 'none' }}
+                  >
+                    {currentQuestionIndex + 1 === shuffledQuestions.length ? 'FINISH MISSION' : 'NEXT SECTOR'}
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1036,10 +869,10 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   // All available quizzes flattened into one pool
   // All available quizzes flattened into one pool removed as it is redundant
 
-  // ── Mission filtering - (Handled specifically in sectors now) ──
+  // ΓöÇΓöÇ Mission filtering - (Handled specifically in sectors now) ΓöÇΓöÇ
 
 
-  // ── Glossary filtering ──
+  // ΓöÇΓöÇ Glossary filtering ΓöÇΓöÇ
   const allLetters = ['All', ...new Set(GLOSSARY_TERMS.map(t => t.letter)).values()].sort((a, b) => {
     if (a === 'All') return -1;
     if (b === 'All') return 1;
@@ -1057,13 +890,18 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
 
   const renderKnowledgeBase = () => {
+    const subTabs = [
+      { id: 'Web3 Basics', label: '1. Basics', icon: '≡ƒîÉ' },
+      { id: 'DAO Knowledge', label: '2. DAO Knowledge', icon: '≡ƒÅ¢∩╕Å' },
+      { id: 'Ecosystem Specific', label: '3. Ecosystem', icon: '≡ƒÜÇ' }
+    ];
 
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        {/* ── Page Header ── */}
+        {/* ΓöÇΓöÇ Page Header ΓöÇΓöÇ */}
         <div style={{ 
           backgroundColor: '#0f172a', borderRadius: '32px', 
-          padding: isMobile ? '24px 20px' : '28px 40px', marginBottom: '32px',
+          padding: isMobile ? '32px 24px' : '48px 60px', marginBottom: '40px',
           display: 'flex', flexDirection: isMobile ? 'column' : 'row',
           alignItems: 'center', justifyContent: 'space-between',
           gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
@@ -1078,21 +916,22 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #2dd4bf, transparent)' }} />
               <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Intelligence Matrix</span>
             </div>
-            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Knowledge <span style={{ color: '#2dd4bf' }}>Base</span></h2>
-            <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
-              Master Web3 and DAO mechanics through interactive missions. Earn on-chain rank and claim unique rewards.
+            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Knowledge <span style={{ color: '#2dd4bf' }}>Base</span></h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '520px', marginBottom: '16px' }}>
+              Master Web3 and DAO mechanics through interactive missions. 
+              Earn on-chain rank and claim unique rewards.
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', borderRadius: '12px', background: 'rgba(45, 212, 191, 0.08)', border: '1px solid rgba(45, 212, 191, 0.2)', marginBottom: '0' }}>
-              <span style={{ fontSize: '1.2rem' }}>🎁</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', borderRadius: '12px', background: 'rgba(45, 212, 191, 0.08)', border: '1px solid rgba(45, 212, 191, 0.2)', marginBottom: '28px' }}>
+              <span style={{ fontSize: '1.2rem' }}>≡ƒÄü</span>
               <span style={{ fontSize: '0.88rem', color: '#2dd4bf', fontWeight: '700' }}>Complete missions and <strong>claim on-chain token rewards</strong> for every sector you master!</span>
             </div>
           </div>
           {!isMobile && (
-            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative' }}>
+            <div style={{ width: '280px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative' }}>
               <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
               <img 
-                src="/learning.png" 
-                alt="Knowledge Base" 
+                src="/space_duck.png" 
+                alt="Mascot" 
                 className="float-anim"
                 style={{ width: '100%', height: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))', zIndex: 1 }}
               />
@@ -1100,33 +939,60 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           )}
         </div>
 
-        {/* Sub-Navigation */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', overflowX: 'auto', paddingBottom: '8px' }}>
-          {['Web3 Basics', 'DAO Knowledge', 'Ecosystem Specific'].map((tab) => (
+        {/* Sub-Navigation Buttons - Moved outside banner */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '16px', 
+          flexWrap: 'wrap', 
+          marginBottom: '40px',
+          padding: '8px 4px'
+        }}>
+          {subTabs.map(tab => (
             <button
-              key={tab}
-              onClick={() => setKnowledgeSubTab(tab)}
+              key={tab.id}
+              onClick={() => setKnowledgeSubTab(tab.id)}
               style={{
-                padding: '10px 20px',
-                borderRadius: '12px',
-                backgroundColor: knowledgeSubTab === tab ? 'rgba(45, 212, 191, 0.1)' : 'transparent',
-                color: knowledgeSubTab === tab ? '#2dd4bf' : '#64748b',
-                border: '1.5px solid ' + (knowledgeSubTab === tab ? '#2dd4bf' : '#1e293b'),
-                fontSize: '0.85rem',
+                backgroundColor: knowledgeSubTab === tab.id ? 'rgba(45, 212, 191, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                color: knowledgeSubTab === tab.id ? '#2dd4bf' : '#94a3b8',
+                padding: '14px 24px',
+                borderRadius: '16px',
                 fontWeight: '800',
+                fontSize: '0.9rem',
+                border: '1.5px solid ' + (knowledgeSubTab === tab.id ? 'rgba(45, 212, 191, 0.3)' : 'rgba(255, 255, 255, 0.06)'),
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: knowledgeSubTab === tab.id ? '0 10px 30px rgba(45, 212, 191, 0.15)' : 'none',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={e => {
+                if (knowledgeSubTab !== tab.id) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={e => {
+                if (knowledgeSubTab !== tab.id) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.color = '#94a3b8';
+                }
               }}
             >
-              {tab}
+              {knowledgeSubTab === tab.id && (
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#2dd4bf', boxShadow: '0 0 10px #2dd4bf' }} />
+              )}
+              <span style={{ fontSize: '1.1rem' }}>{tab.icon}</span> {tab.label}
             </button>
           ))}
         </div>
 
         {/* Content based on sub-tab */}
         <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-
           {knowledgeSubTab === 'Web3 Basics' && (
             <div id="web3-basics-sector">
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
@@ -1140,15 +1006,15 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                     onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🌐'}</div>
-                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Beginner'}</div>
+                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '≡ƒîÉ'}</div>
+                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'900', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.1em' }}>{quiz.level || 'Beginner'}</div>
                     </div>
                     <div>
-                      <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
-                      <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                      <h3 style={{ fontSize:'1.15rem', fontWeight:'800', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                      <p style={{ fontSize:'0.88rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
                     </div>
                     <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
+                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.78rem', fontWeight:'800' }}>ENTER MISSION <ChevronRight size={13} /></div>
                       <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
                     </div>
                   </div>
@@ -1170,15 +1036,15 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                     onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🏛️'}</div>
-                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Beginner'}</div>
+                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '≡ƒÅ¢∩╕Å'}</div>
+                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'900', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.1em' }}>{quiz.level || 'Beginner'}</div>
                     </div>
                     <div>
-                      <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
-                      <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                      <h3 style={{ fontSize:'1.15rem', fontWeight:'800', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                      <p style={{ fontSize:'0.88rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
                     </div>
                     <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
+                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.78rem', fontWeight:'800' }}>ENTER MISSION <ChevronRight size={13} /></div>
                       <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
                     </div>
                   </div>
@@ -1215,21 +1081,21 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                                 style={{ width: '32px', height: '32px', objectFit: 'contain' }}
                                 onError={e => {
                                   e.target.style.display = 'none';
-                                  e.target.parentElement.innerText = quiz.emoji || '🌐';
+                                  e.target.parentElement.innerText = quiz.emoji || '≡ƒîÉ';
                                 }}
                               />
                             ) : (
-                              quiz.emoji || '🌐'
+                              quiz.emoji || '≡ƒîÉ'
                             )}
                           </div>
-                          <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Intermediate'}</div>
+                          <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'900', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.1em' }}>{quiz.level || 'Intermediate'}</div>
                         </div>
                         <div>
-                          <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
-                          <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                          <h3 style={{ fontSize:'1.15rem', fontWeight:'800', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                          <p style={{ fontSize:'0.88rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
                         </div>
                         <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
+                          <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.78rem', fontWeight:'800' }}>ENTER MISSION <ChevronRight size={13} /></div>
                           <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
                         </div>
                       </div>
@@ -1243,40 +1109,26 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       </div>
     );
   };
+
   const renderGlossary = () => {
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        {/* ── Page Header Standardized ── */}
         <div style={{ 
-          backgroundColor: '#0f172a', borderRadius: '32px', 
-          padding: isMobile ? '24px 20px' : '28px 40px', marginBottom: '32px',
+          backgroundColor: '#ffffff', borderRadius: '24px', 
+          padding: isMobile ? '32px 24px' : '40px 60px', marginBottom: '40px',
           display: 'flex', flexDirection: isMobile ? 'column' : 'row',
           alignItems: 'center', justifyContent: 'space-between',
-          gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.05)'
+          gap: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', position: 'relative', overflow: 'hidden'
         }}>
-          {/* Decorative Background Elements */}
-          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
-          
           <div style={{ flex: 1, zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #3b82f6, transparent)' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Intelligence Archives</span>
-            </div>
-            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Intel <span style={{ color: '#3b82f6' }}>Glossary</span></h2>
-            <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
-              Explore Web3 terminology made simple. Discover clear definitions that make the decentralized ecosystem easier to understand.
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#1e293b', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif" }}>Intel Glossary</h2>
+            <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '500px', marginBottom: '32px' }}>
+              Master the terminology of the decentralized world. Search through curated technical terms and governance concepts.
             </p>
           </div>
           {!isMobile && (
-            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
-              <img 
-                src="/glossary.png" 
-                alt="Intel Glossary" 
-                className="float-anim"
-                style={{ width: '100%', height: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))', zIndex: 1 }}
-              />
+            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <span style={{ fontSize: '8rem', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.1))' }}>≡ƒôû</span>
             </div>
           )}
         </div>
@@ -1294,9 +1146,9 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         </div>
 
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid #1e293b' }}>
-          {allLetters.filter(l => l !== 'All').map(l => (
+          {allLetters.map(l => (
             <button key={l} onClick={() => setActiveLetter(l)} style={{
-              width: '36px', height: '36px', padding: '0',
+              width: l === 'All' ? 'auto' : '36px', height: '36px', padding: l === 'All' ? '0 12px' : '0',
               borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               backgroundColor: activeLetter === l ? '#2dd4bf' : 'rgba(255,255,255,0.03)',
               color: activeLetter === l ? 'black' : '#64748b',
@@ -1329,7 +1181,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   };
 
   const renderForums = () => {
-    // ── Forum filtering ──
+    // ΓöÇΓöÇ Forum filtering ΓöÇΓöÇ
     const filteredForums = GOVERNANCE_FORUMS.filter(f =>
       f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       f.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1337,37 +1189,23 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     return (
       <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-        {/* ── Page Header Standardized ── */}
+        {/* ΓöÇΓöÇ Forum Banner ΓöÇΓöÇ */}
         <div style={{ 
-          backgroundColor: '#0f172a', borderRadius: '32px', 
-          padding: isMobile ? '24px 20px' : '28px 40px', marginBottom: '32px',
+          backgroundColor: '#ffffff', borderRadius: '24px', 
+          padding: isMobile ? '32px 24px' : '40px 60px', marginBottom: '40px',
           display: 'flex', flexDirection: isMobile ? 'column' : 'row',
           alignItems: 'center', justifyContent: 'space-between',
-          gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.05)'
+          gap: '40px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', position: 'relative', overflow: 'hidden'
         }}>
-          {/* Decorative Background Elements */}
-          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
-          
           <div style={{ flex: 1, zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #a855f7, transparent)' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Governance Hub</span>
-            </div>
-            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Governance <span style={{ color: '#a855f7' }}>Forums</span></h2>
-            <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#1e293b', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif" }}>Governance Forums</h2>
+            <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '500px', marginBottom: '32px' }}>
               Explore active governance spaces across the Web3 ecosystem. Read proposals, cast votes, and shape protocol decisions.
             </p>
           </div>
           {!isMobile && (
-            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
-              <img 
-                src="/governace.png" 
-                alt="Governance Forums" 
-                className="float-anim"
-                style={{ width: '100%', height: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))', zIndex: 1 }}
-              />
+            <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <span style={{ fontSize: '8rem', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.1))' }}>≡ƒÅ¢∩╕Å</span>
             </div>
           )}
         </div>
@@ -1417,14 +1255,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     const completedCount = Object.values(perfectQuizzes).flat().length;
 
     return (
-      <div style={{ 
-        animation: 'fadeIn 0.3s ease-out',
-        maxWidth: '1100px',
-        margin: '0 auto',
-        padding: isMobile ? '0' : '0 40px'
-      }}>
-
-
+      <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
         {/* Profile Banner */}
         <div style={{ 
           backgroundColor: '#0f172a', borderRadius: '32px', 
@@ -1434,24 +1265,24 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
-          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
-          <div style={{ position: 'absolute', bottom: '-100px', left: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', bottom: '-100px', left: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.05) 0%, transparent 70%)', zIndex: 0 }} />
           
           <div style={{ flex: 1, zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #2dd4bf, transparent)' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Agent Profile</span>
+              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #a855f7, transparent)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Agent Profile</span>
             </div>
-            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Mission <span style={{ color: '#2dd4bf' }}>Achievements</span></h2>
-            <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Mission <span style={{ color: '#a855f7' }}>Achievements</span></h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '520px', marginBottom: '16px' }}>
               Review your overall progress, secured sectors, and managed assets across the decentralized frontier.
             </p>
           </div>
           {!isMobile && (
             <div style={{ width: '160px', height: '160px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyItems: 'center', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)', filter: 'blur(20px)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)', filter: 'blur(20px)' }} />
               <div style={{ zIndex: 1, fontSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%', animation: 'float 4s ease-in-out infinite' }}>
-                👤
+                ≡ƒæñ
               </div>
             </div>
           )}
@@ -1464,7 +1295,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           </div>
           <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
             <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Missions Cleared</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>{completedCount} <span style={{ fontSize: '1rem', color: '#2dd4bf' }}>SECURED</span></div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>{completedCount} <span style={{ fontSize: '1rem', color: '#a855f7' }}>SECURED</span></div>
           </div>
           <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
             <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Current Rank</div>
@@ -1580,43 +1411,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               </div>
             </div>
           ))}
-          
-          {/* Smart Contract Config */}
-          <div style={{ marginTop: '20px', padding: '32px', borderRadius: '24px', backgroundColor: 'rgba(45, 212, 191, 0.05)', border: '1.5px solid rgba(45, 212, 191, 0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <Shield size={20} style={{ color: '#2dd4bf' }} />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', margin: 0 }}>Smart Claim Protocol</h3>
-            </div>
-            <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '20px' }}>
-              Configure the <strong>QuizRewards</strong> contract address to enable on-chain decentralized reward distribution. 
-              Leave blank to use direct Hot Wallet transfers.
-            </p>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type="text" 
-                placeholder="0x..."
-                value={quizRewardsAddress}
-                onChange={(e) => {
-                  setQuizRewardsAddress(e.target.value);
-                  localStorage.setItem('quiz_rewards_contract', e.target.value);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '16px 20px',
-                  backgroundColor: '#0a0f1e',
-                  border: '1px solid #1e293b',
-                  borderRadius: '14px',
-                  color: 'white',
-                  fontSize: '0.95rem',
-                  fontFamily: 'monospace',
-                  outline: 'none'
-                }}
-              />
-              <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.65rem', fontWeight: '900', color: quizRewardsAddress ? '#2dd4bf' : '#475569' }}>
-                {quizRewardsAddress ? 'ACTIVE' : 'INACTIVE'}
-              </div>
-            </div>
-          </div>
           
           <button 
             onClick={disconnectWallet}
@@ -1736,7 +1530,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             padding: '32px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '1.5rem' }}>🎓</span>
+              <span style={{ fontSize: '1.5rem' }}>≡ƒÄô</span>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white' }}>Mission Objective</h3>
             </div>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '24px', maxWidth: '600px' }}>
@@ -1851,11 +1645,15 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             <button 
               onClick={connectWallet}
               disabled={isConnecting}
-              className="btn-primary"
               style={{
+                backgroundColor: '#2dd4bf',
+                color: 'black',
+                padding: '8px 24px',
+                borderRadius: '100px',
+                fontWeight: '900',
+                fontSize: '0.85rem',
                 border: 'none',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                cursor: 'pointer'
               }}
             >
               {isConnecting ? '...' : 'Connect Wallet'}
@@ -1875,13 +1673,13 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         {/* Navigation Sidebar */}
         {!activeQuiz && (isMobile ? isSidebarOpen : true) && (
           <aside style={{
-            width: isMobile ? '100%' : '250px',
-            position: 'fixed',
+            width: isMobile ? '100%' : '280px',
+            position: isMobile ? 'fixed' : 'static',
             top: '80px',
             left: 0,
             bottom: 0,
             zIndex: 150,
-            backgroundColor: isMobile ? '#0a0f1e' : '#050a15',
+            backgroundColor: isMobile ? '#0a0f1e' : 'transparent',
             borderRight: '1px solid rgba(255,255,255,0.05)',
             padding: '32px 20px',
             display: 'flex',
@@ -1897,44 +1695,32 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 <SidebarItem icon={BookOpen} label="Knowledge Base" active={activeTab === 'Knowledge Base'} onClick={() => { setActiveTab('Knowledge Base'); if(isMobile) setIsSidebarOpen(false); }} />
                 <SidebarItem icon={Book} label="Intel Glossary" active={activeTab === 'Glossary'} onClick={() => { setActiveTab('Glossary'); if(isMobile) setIsSidebarOpen(false); }} />
                 <SidebarItem icon={MessageSquare} label="Governance Forums" active={activeTab === 'Forums'} onClick={() => { setActiveTab('Forums'); if(isMobile) setIsSidebarOpen(false); }} />
+
                 <SidebarItem icon={Settings} label="Simulator Config" active={activeTab === 'Settings'} onClick={() => { setActiveTab('Settings'); if(isMobile) setIsSidebarOpen(false); }} />
               </div>
             </div>
 
-            {isLoggedIn && (
-              <div>
-                <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', marginLeft: '12px', marginBottom: '16px', display: 'block' }}>Simulation Stats</span>
-                <div style={{ backgroundColor: '#0a0f1e', borderRadius: '20px', padding: '20px', border: '1px solid #1e293b' }}>
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>CURRENT RANK</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>Field Agent</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>MASTERY SCORE</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#2dd4bf' }}>{Object.values(perfectQuizzes).flat().length * 100} PTS</div>
-                  </div>
+            <div>
+              <span style={{ fontSize: '0.65rem', fontWeight: '900', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', marginLeft: '12px', marginBottom: '16px', display: 'block' }}>Simulation Stats</span>
+              <div style={{ backgroundColor: '#0a0f1e', borderRadius: '20px', padding: '20px', border: '1px solid #1e293b' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>CURRENT RANK</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>Field Agent</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>MASTERY SCORE</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#2dd4bf' }}>{Object.values(perfectQuizzes).flat().length * 100} PTS</div>
                 </div>
               </div>
-            )}
-            {isLoggedIn && (
-              <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <SidebarItem 
-                  icon={LogOut} 
-                  label="Log Out" 
-                  onClick={disconnectWallet} 
-                  style={{ color: '#ef4444' }}
-                />
-              </div>
-            )}
+            </div>
           </aside>
         )}
 
         {/* Main Content Area */}
-        <main ref={mainContentRef} style={{ 
+        <main style={{ 
           flex: 1,
-          marginLeft: isMobile ? 0 : (!activeQuiz ? '250px' : 0),
           overflowY: 'auto',
-          padding: isMobile ? '32px 20px' : '40px 30px',
+          padding: isMobile ? '32px 20px' : '40px 60px',
           animation: 'fadeIn 0.5s ease-out'
         }}>
           {currentView === 'quiz' && activeQuiz ? (

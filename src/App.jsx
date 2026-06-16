@@ -23,6 +23,7 @@ function App() {
     setSelectedMode(mode);
     setInitialTab(tab);
     setShowDashboard(true);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   if (showDashboard) {

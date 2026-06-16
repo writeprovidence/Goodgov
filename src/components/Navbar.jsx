@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import WalletDropdown from './WalletDropdown';
 
-const Navbar = ({ onStart, authenticated, user, logout, login }) => {
+const Navbar = ({ onStart }) => {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -36,32 +35,15 @@ const Navbar = ({ onStart, authenticated, user, logout, login }) => {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        {!authenticated ? (
-          <button 
-            id="nav-cta" 
-            className="btn-primary" 
-            onClick={() => onStart()}
-            style={{ cursor: 'pointer' }}
-          >
-            Play Now
-          </button>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button 
-              className="btn-primary" 
-              onClick={() => onStart()}
-              style={{ cursor: 'pointer' }}
-            >
-              Enter Hub
-            </button>
-            <WalletDropdown 
-              address={user?.wallet?.address} 
-              authenticated={authenticated} 
-              onLogout={logout}
-              onProfile={() => onStart(null, 'Profile')}
-            />
-          </div>
-        )}
+        <button 
+          id="nav-cta" 
+          className="btn-primary" 
+          onClick={() => onStart()}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+        >
+          Play Now
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
       </div>
     </nav>
   );
