@@ -378,8 +378,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     try {
       if (QUIZ_REWARDS_ADDRESS) {
-        const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://127.0.0.1:3001';
-        const sigRes = await fetch(`${SERVER_URL}/api/sign-reward`, {
+        const sigRes = await fetch('/api/sign-reward', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
