@@ -90,6 +90,8 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [lifelines, setLifelines] = useState({ fiftyFifty: true, lifeline: true });
   const [hiddenOptions, setHiddenOptions] = useState([]);
   const [timeLeft, setTimeLeft] = useState(30);
+  const [questionReady, setQuestionReady] = useState(false);
+  const [readyCountdown, setReadyCountdown] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const { login, logout, authenticated, user } = usePrivy();
@@ -136,6 +138,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [launchingQuiz, setLaunchingQuiz] = useState(null);
   const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => localStorage.getItem('quiz_rewards_contract') || "");
   const mainContentRef = useRef(null);
+  const popupTimeoutRef = useRef(null);
 
   // Scroll main content to top whenever the active tab changes
   useEffect(() => {
@@ -150,42 +153,52 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     setLaunchingQuiz({ quiz, stage });
     setIsLaunching(true);
 
-    setTimeout(() => {
-      // Shuffle and pick up to 20 questions from the pool
-      const pool = [...quiz.questions].sort(() => 0.5 - Math.random());
-      const selected = pool.slice(0, 20).map(q => {
-        // Create a copy of options with their original index
-        const optionsWithMeta = q.options.map((opt, idx) => ({
-          text: opt,
-          isCorrect: idx === q.correct
-        }));
-        
-        // Shuffle the options
-        const shuffledOptionsWithMeta = optionsWithMeta.sort(() => 0.5 - Math.random());
-        
-        return {
-          ...q,
-          options: shuffledOptionsWithMeta.map(o => o.text),
-          correct: shuffledOptionsWithMeta.findIndex(o => o.isCorrect)
-        };
-      });
+    // Do all quiz setup immediately
+    // Shuffle and pick up to 20 questions from the pool
+    const pool = [...quiz.questions].sort(() => 0.5 - Math.random());
+    const selected = pool.slice(0, 20).map(q => {
+      // Create a copy of options with their original index
+      const optionsWithMeta = q.options.map((opt, idx) => ({
+        text: opt,
+        isCorrect: idx === q.correct
+      }));
       
-      setActiveQuiz(quiz);
-      setShuffledQuestions(selected);
-      setActiveQuizStage(stage);
-      setCurrentQuestionIndex(0);
-      setSelectedOption(null);
-      setIsAnswered(false);
-      setScore(0);
-      setQuizCompleted(false);
-      setCurrentView('quiz');
-      setLifelines({ fiftyFifty: true, lifeline: true });
-      setHiddenOptions([]);
-      setTimeLeft(60);
-      setIsLaunching(false);
-      setLaunchingQuiz(null);
-    }, 8000);
+      // Shuffle the options
+      const shuffledOptionsWithMeta = optionsWithMeta.sort(() => 0.5 - Math.random());
+      
+      return {
+        ...q,
+        options: shuffledOptionsWithMeta.map(o => o.text),
+        correct: shuffledOptionsWithMeta.findIndex(o => o.isCorrect)
+      };
+    });
+    
+    setActiveQuiz(quiz);
+    setShuffledQuestions(selected);
+    setActiveQuizStage(stage);
+    setCurrentQuestionIndex(0);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setShowPopup(false);
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
+      popupTimeoutRef.current = null;
+    }
+    setScore(0);
+    setQuizCompleted(false);
+    setCurrentView('quiz');
+    setLifelines({ fiftyFifty: true, lifeline: true });
+    setHiddenOptions([]);
+    setTimeLeft(30);
+    setQuestionReady(false);
+    setReadyCountdown(3);
+    setClaimStatus(null);
   }, []);
+
+  const handleLoadingComplete = () => {
+    setIsLaunching(false);
+    setLaunchingQuiz(null);
+  };
 
 
 
@@ -246,9 +259,30 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     setTimeout(() => startQuiz(quiz, quiz.stage || 'DAO knowledge'), 100);
   }, [initialMode, startQuiz]);
 
-  // Countdown timer
+  // "Get Ready" countdown before each question
   useEffect(() => {
-    if (currentView !== 'quiz' || isAnswered || quizCompleted || !activeQuiz) return;
+    if (currentView !== 'quiz' || quizCompleted || !activeQuiz || isLaunching) return;
+    if (questionReady) return; // already ready
+    if (readyCountdown <= 0) {
+      setQuestionReady(true);
+      return;
+    }
+    const interval = setInterval(() => {
+      setReadyCountdown(c => {
+        if (c <= 1) {
+          clearInterval(interval);
+          setQuestionReady(true);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [currentView, quizCompleted, activeQuiz, isLaunching, questionReady, readyCountdown]);
+
+  // Countdown timer (only starts when question is ready)
+  useEffect(() => {
+    if (currentView !== 'quiz' || isAnswered || quizCompleted || !activeQuiz || !questionReady) return;
     const interval = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) { clearInterval(interval); return 0; }
@@ -256,14 +290,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [currentView, isAnswered, quizCompleted, activeQuiz]);
+  }, [currentView, isAnswered, quizCompleted, activeQuiz, questionReady]);
 
   // Auto-mark answered when timer expires
   useEffect(() => {
     if (timeLeft === 0 && currentView === 'quiz' && !isAnswered && !quizCompleted) {
       const timer = setTimeout(() => {
         setIsAnswered(true);
-        setTimeout(() => setShowPopup(true), 1500);
+        popupTimeoutRef.current = setTimeout(() => setShowPopup(true), 1500);
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -372,15 +406,21 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           })
         });
         
+        if (!res.ok) {
+          throw new Error('Server unavailable. Please make sure the backend server is running on port 3001.');
+        }
+
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to claim reward');
-        
         setClaimStatus({ success: true, message: data.message });
       }
       
     } catch (err) {
       console.error(err);
-      setClaimStatus({ success: false, message: err.message });
+      // Show a friendly error or a success fallback if server is not available
+      setClaimStatus({ 
+        success: false, 
+        message: err.message || "Failed to claim reward. Please try again later or make sure the backend server is running." 
+      });
     } finally {
       setIsClaiming(false);
     }
@@ -458,13 +498,13 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   };
 
   const handleOptionSelect = (index) => {
-    if (isAnswered || hiddenOptions.includes(index)) return;
+    if (isAnswered || hiddenOptions.includes(index) || !questionReady) return;
     setSelectedOption(index);
     setIsAnswered(true);
     if (index === shuffledQuestions[currentQuestionIndex].correct) {
       setScore(s => s + 1);
     }
-    setTimeout(() => {
+    popupTimeoutRef.current = setTimeout(() => {
       setShowPopup(true);
     }, 1500);
   };
@@ -476,8 +516,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       setSelectedOption(null);
       setIsAnswered(false);
       setShowPopup(false);
+      if (popupTimeoutRef.current) {
+        clearTimeout(popupTimeoutRef.current);
+        popupTimeoutRef.current = null;
+      }
       setHiddenOptions([]);
       setTimeLeft(30);
+      setQuestionReady(false);
+      setReadyCountdown(3);
     } else {
       setQuizCompleted(true);
       const isPerfect = score === shuffledQuestions.length;
@@ -552,96 +598,224 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       }
 
       return (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', overflowY: 'auto' }}>
-          <div style={{ maxWidth: '620px', margin: '60px auto', textAlign: 'center' }}>
-            <div style={{ fontSize: '5rem', marginBottom: '24px', animation: 'float 3s ease-in-out infinite' }}>
-              {isPerfectRun ? '🏆' : '🎮'}
-            </div>
-            <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px', letterSpacing: '-0.02em' }}>
-              {isPerfectRun ? 'Perfect Victory!' : 'Mission Failed'}
-            </h2>
-            <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '32px' }}>
-              {activeQuiz.title} — Score: <strong style={{ color: 'white' }}>{score}/{shuffledQuestions.length}</strong>
-            </p>
-
-            <div style={{ backgroundColor: '#0f172a', border: '1.5px solid #1e293b', borderRadius: '24px', padding: '28px', marginBottom: '28px', textAlign: 'left' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px' }}>Token Claim Progress</div>
-              {[['Mastery Challenges', '🏆'], ['Web3 Basics', '🌐'], ['DAO knowledge', '🏛️'], ['Ecosystem specific', '🌱']].map(([stage, icon]) => (
-                <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '16px', marginBottom: '12px', backgroundColor: completedStages[stage] ? 'rgba(45,212,191,0.07)' : 'transparent', border: `1.5px solid ${completedStages[stage] ? '#2dd4bf40' : '#1e293b'}` }}>
-                  <div style={{ fontSize: '1.4rem' }}>{icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontWeight: '700', color: completedStages[stage] ? '#2dd4bf' : '#94a3b8', fontSize: '0.95rem' }}>{stage}</div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: '800', color: completedStages[stage] ? '#2dd4bf' : '#64748b' }}>
-                        {perfectQuizzes[stage]?.length || 0}/{stageQuizCounts[stage] || 1}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{completedStages[stage] ? 'Completed with Mastery' : 'In Progress'}</div>
-                  </div>
-                  <div style={{ fontSize: '1.2rem' }}>{completedStages[stage] ? '✅' : '🔒'}</div>
-                </div>
-              ))}
-            </div>
-
-            {isPerfectRun ? (
-              <div style={{ padding: '18px', borderRadius: '14px', backgroundColor: 'rgba(45, 212, 191, 0.07)', border: '1px solid rgba(45, 212, 191, 0.2)', marginBottom: '20px', color: '#2dd4bf', fontSize: '0.9rem', fontWeight: '600' }}>
-                ✅ Stage cleared with 100% accuracy!
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ maxWidth: '700px', width: '100%' }}>
+            {/* Header Section */}
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <div style={{ 
+                width: '96px', 
+                height: '96px', 
+                borderRadius: '24px', 
+                background: isPerfectRun ? 'linear-gradient(135deg, rgba(45,212,191,0.2) 0%, rgba(45,212,191,0.05) 100%)' : 'linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.05) 100%)', 
+                border: `1.5px solid ${isPerfectRun ? 'rgba(45,212,191,0.3)' : 'rgba(239,68,68,0.3)'}`, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                fontSize: '3rem',
+                margin: '0 auto 24px',
+                boxShadow: isPerfectRun ? '0 20px 60px rgba(45,212,191,0.15)' : '0 20px 60px rgba(239,68,68,0.1)'
+              }}>
+                {isPerfectRun ? '🏆' : '📊'}
               </div>
-            ) : (
-              <div style={{ padding: '18px', borderRadius: '14px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '20px', color: '#ef4444', fontSize: '0.9rem', fontWeight: '600' }}>
-                ⚠️ Mission Failed. Token rewards for this stage remain locked.
+              <h2 style={{ 
+                fontSize: '2.25rem', 
+                fontWeight: '800', 
+                marginBottom: '8px', 
+                letterSpacing: '-0.02em',
+                background: isPerfectRun ? 'linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%)' : 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                {isPerfectRun ? 'Perfect Mastery!' : 'Quiz Complete'}
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '1rem', margin: 0 }}>
+                {activeQuiz.title}
+              </p>
+            </div>
+
+            {/* Score Card */}
+            <div style={{ 
+              background: 'linear-gradient(180deg, #0f172a 0%, #0a0f1e 100%)', 
+              border: '1.5px solid #1e293b', 
+              borderRadius: '24px', 
+              padding: '32px', 
+              marginBottom: '24px',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.4)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Final Score</div>
+                  <div style={{ fontSize: '4rem', fontWeight: '900', lineHeight: 1, color: isPerfectRun ? '#2dd4bf' : '#94a3b8' }}>
+                    {score}/{shuffledQuestions.length}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Accuracy</div>
+                  <div style={{ fontSize: '2rem', fontWeight: '900', lineHeight: 1, color: isPerfectRun ? '#2dd4bf' : '#94a3b8' }}>
+                    {Math.round((score / shuffledQuestions.length) * 100)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ height: '8px', backgroundColor: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: `${(score / shuffledQuestions.length) * 100}%`, 
+                    height: '100%', 
+                    background: isPerfectRun ? 'linear-gradient(90deg, #2dd4bf 0%, #14b8a6 100%)' : 'linear-gradient(90deg, #64748b 0%, #475569 100%)',
+                    borderRadius: '4px',
+                    transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)'
+                  }} />
+                </div>
+              </div>
+
+              {/* Status Badge */}
+              <div style={{ 
+                padding: '14px 20px', 
+                borderRadius: '14px', 
+                backgroundColor: isPerfectRun ? 'rgba(45, 212, 191, 0.08)' : 'rgba(100, 116, 139, 0.1)', 
+                border: `1.5px solid ${isPerfectRun ? 'rgba(45, 212, 191, 0.25)' : 'rgba(100, 116, 139, 0.25)'}`, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px'
+              }}>
+                <div style={{ 
+                  width: '10px', 
+                  height: '10px', 
+                  borderRadius: '50%', 
+                  backgroundColor: isPerfectRun ? '#2dd4bf' : '#64748b', 
+                  boxShadow: `0 0 12px ${isPerfectRun ? 'rgba(45,212,191,0.4)' : 'rgba(100,116,139,0.4)'}` 
+                }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: '700', color: isPerfectRun ? '#2dd4bf' : '#94a3b8' }}>
+                  {isPerfectRun ? '✓ Stage cleared with 100% accuracy!' : 'Mission completed — great effort!'}
+                </span>
+              </div>
+            </div>
+
+            {/* Reward Section (if applicable) */}
+            {isPerfectRun && shuffledQuestions.length === 20 && (
+              <div style={{ 
+                background: 'linear-gradient(180deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.03) 100%)', 
+                border: '1.5px solid rgba(45,212,191,0.25)', 
+                borderRadius: '20px', 
+                padding: '24px', 
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '1.75rem' }}>💰</div>
+                  <div>
+                    <div style={{ fontWeight: '800', color: '#2dd4bf', fontSize: '1.1rem' }}>Reward Available</div>
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Claim your 10 G$ for perfect performance</div>
+                  </div>
+                </div>
+                
+                {claimStatus ? (
+                   <div style={{ 
+                     padding: '14px 18px', 
+                     borderRadius: '12px', 
+                     background: claimStatus.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                     border: `1.5px solid ${claimStatus.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, 
+                     color: claimStatus.success ? '#10b981' : '#ef4444', 
+                     fontSize: '0.9rem', 
+                     fontWeight: '700',
+                     textAlign: 'center'
+                   }}>
+                     {claimStatus.success ? '🎉 ' : '⚠️ '}{claimStatus.message}
+                   </div>
+                ) : (
+                  <button 
+                    onClick={handleDirectClaim}
+                    disabled={isClaiming}
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px 24px', 
+                      borderRadius: '14px', 
+                      background: isClaiming ? '#1e293b' : 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                      color: 'black', 
+                      fontWeight: '800', 
+                      border: 'none',
+                      cursor: isClaiming ? 'wait' : 'pointer', 
+                      fontSize: '1rem',
+                      boxShadow: '0 8px 24px rgba(45, 212, 191, 0.25)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isClaiming) {
+                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(45, 212, 191, 0.35)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isClaiming) {
+                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(45, 212, 191, 0.25)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    {isClaiming ? 'Transferring 10 G$...' : 'Claim 10 G$ Reward'}
+                  </button>
+                )}
               </div>
             )}
 
+            {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {getNextQuiz() && (
                 <button 
                   onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
-                  style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: '#2dd4bf', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(45, 212, 191, 0.2)' }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '18px 24px', 
+                    borderRadius: '14px', 
+                    fontWeight: '800', 
+                    fontSize: '1rem', 
+                    background: '#0f172a', 
+                    color: 'white', 
+                    border: '1.5px solid #1e293b', 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#2dd4bf';
+                    e.currentTarget.style.backgroundColor = 'rgba(45,212,191,0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#1e293b';
+                    e.currentTarget.style.backgroundColor = '#0f172a';
+                  }}
                 >
-                  PROCEED TO NEXT MISSION
+                  Continue to Next Mission →
                 </button>
               )}
 
-              {isPerfectRun && shuffledQuestions.length === 20 && (
-                <div style={{ marginTop: '12px', padding: '20px', borderRadius: '16px', background: 'rgba(45, 212, 191, 0.1)', border: '1.5px solid rgba(45, 212, 191, 0.3)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>💰</div>
-                  <div style={{ fontWeight: '800', color: '#2dd4bf', marginBottom: '4px' }}>Perfect Mastery Achieved!</div>
-                  <p style={{ fontSize: '0.9rem', color: '#94a3b8', margin: '0 0 16px 0' }}>
-                    Outstanding! You've answered all 20 questions correctly in this Mastery Mission. Claim your 10 G$ reward below.
-                  </p>
-                  
-                  {claimStatus ? (
-                     <div style={{ padding: '12px', borderRadius: '10px', background: claimStatus.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${claimStatus.success ? '#10b981' : '#ef4444'}`, color: claimStatus.success ? '#10b981' : '#ef4444', fontSize: '0.85rem', fontWeight: '700' }}>
-                       {claimStatus.success ? '🎉 ' : '⚠️ '}{claimStatus.message}
-                     </div>
-                  ) : (
-                    <button 
-                      onClick={handleDirectClaim}
-                      disabled={isClaiming}
-                      style={{ 
-                        width: '100%', padding: '14px 20px', borderRadius: '12px', 
-                        background: isClaiming ? '#64748b' : 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                        color: 'black', fontWeight: '800', border: 'none',
-                        cursor: isClaiming ? 'wait' : 'pointer', fontSize: '0.95rem',
-                        boxShadow: '0 4px 14px rgba(45, 212, 191, 0.3)'
-                      }}
-                    >
-                      {isClaiming ? 'Transferring 10 G$...' : 'Deposit 10 G$ to my Wallet'}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {allStagesComplete && isPerfectRun && (
-                <button style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(245, 158, 11, 0.3)' }}>
-                  🪙 Claim Grand Master Token
-                </button>
-              )}
+              <button 
+                onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
+                style={{ 
+                  background: 'transparent', 
+                  border: '1.5px solid #1e293b', 
+                  color: '#64748b', 
+                  width: '100%', 
+                  padding: '16px 24px', 
+                  borderRadius: '14px', 
+                  fontWeight: '700', 
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#334155';
+                  e.currentTarget.style.color = '#94a3b8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#1e293b';
+                  e.currentTarget.style.color = '#64748b';
+                }}
+              >
+                Choose New Quiz
+              </button>
             </div>
-            <button onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} style={{ background: 'none', border: '1px solid #1e293b', color: '#94a3b8', width: '100%', padding: '16px', borderRadius: '16px', fontWeight: '700', cursor: 'pointer', marginTop: '12px' }}>
-              Choose New Quiz
-            </button>
           </div>
         </div>
       );
@@ -724,6 +898,56 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   Exit Quiz
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Get Ready Countdown Overlay */}
+        {!questionReady && !quizCompleted && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 1999,
+            backgroundColor: 'rgba(5, 10, 21, 0.85)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexDirection: 'column',
+            animation: 'fadeIn 0.3s ease-out'
+          }}>
+            <div style={{
+              width: '120px', height: '120px',
+              borderRadius: '50%',
+              border: '3px solid rgba(45, 212, 191, 0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative',
+              marginBottom: '28px'
+            }}>
+              {/* Animated ring */}
+              <svg width="120" height="120" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
+                <circle cx="60" cy="60" r="57" fill="none" stroke="#2dd4bf" strokeWidth="3"
+                  strokeDasharray={`${2 * Math.PI * 57}`}
+                  strokeDashoffset={`${2 * Math.PI * 57 * (1 - readyCountdown / 3)}`}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset 0.9s ease-in-out', filter: 'drop-shadow(0 0 8px rgba(45,212,191,0.5))' }}
+                />
+              </svg>
+              <span style={{
+                fontSize: '3rem', fontWeight: '900', color: '#2dd4bf',
+                fontFamily: "'PP Mori', sans-serif",
+                textShadow: '0 0 20px rgba(45,212,191,0.4)'
+              }}>
+                {readyCountdown}
+              </span>
+            </div>
+            <div style={{
+              fontSize: '0.7rem', fontWeight: '800', color: '#2dd4bf',
+              letterSpacing: '0.3em', textTransform: 'uppercase',
+              marginBottom: '8px', opacity: 0.9
+            }}>
+              Get Ready
+            </div>
+            <div style={{
+              fontSize: '0.75rem', color: '#475569', fontWeight: '600',
+              letterSpacing: '0.05em'
+            }}>
+              Question {currentQuestionIndex + 1} of {shuffledQuestions.length}
             </div>
           </div>
         )}
@@ -1786,7 +2010,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {isLaunching && <LoadingScreen quiz={launchingQuiz?.quiz} />}
+      {isLaunching && <LoadingScreen quiz={launchingQuiz?.quiz} onContinue={handleLoadingComplete} />}
       {/* Top Navigation Bar */}
       <header style={{
         height: '80px',

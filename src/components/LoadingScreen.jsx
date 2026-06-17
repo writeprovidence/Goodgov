@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Cpu } from 'lucide-react';
 
-const LoadingScreen = ({ quiz }) => {
+const LoadingScreen = ({ quiz, onContinue }) => {
   const [progress, setProgress] = useState(0);
 
   const messages = [
@@ -41,6 +41,16 @@ const LoadingScreen = ({ quiz }) => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-continue to quiz when loading completes
+  useEffect(() => {
+    if (progress === 100) {
+      const timeout = setTimeout(() => {
+        onContinue();
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [progress, onContinue]);
 
   return (
     <div style={{
@@ -199,6 +209,9 @@ const LoadingScreen = ({ quiz }) => {
           </div>
         </div>
 
+
+
+
         <div style={{ 
           fontSize: '0.6rem', 
           color: '#475569', 
@@ -207,7 +220,8 @@ const LoadingScreen = ({ quiz }) => {
           alignItems: 'center', 
           justifyContent: 'center',
           gap: '8px',
-          letterSpacing: '0.1em'
+          letterSpacing: '0.1em',
+          marginTop: '16px'
         }}>
           DO NOT REFRESH TAB DURING DEPLOYMENT
         </div>
