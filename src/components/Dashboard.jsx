@@ -31,6 +31,9 @@ const GD_TOKEN_ADDRESS = "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A";
 const GOODDAPP_URL = "https://gooddapp.org";
 const GOODWALLET_URL = "https://wallet.gooddollar.org";
 
+// Deployed QuizRewards contract on Celo Mainnet (nonce 25)
+const QUIZ_REWARDS_CONTRACT = "0x66A159A0F8E204383D3c32Acf5DaF97f23541989";
+
 
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, style = {} }) => (
@@ -101,6 +104,11 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const isConnecting = false; // Privy handles connection state internally
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimStatus, setClaimStatus] = useState(null);
+  const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
+  const [claimedRewardsHistory, setClaimedRewardsHistory] = useState(() => {
+    const saved = localStorage.getItem('goodgov_claim_history');
+    return saved ? JSON.parse(saved) : {}; // { quizId: { amount: 10, timestamp: ms } }
+  });
 
   const handleVerifyIdentity = async (e) => {
     e.preventDefault();
@@ -136,7 +144,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [knowledgeSubTab, setKnowledgeSubTab] = useState('Web3 Basics');
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchingQuiz, setLaunchingQuiz] = useState(null);
-  const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => localStorage.getItem('quiz_rewards_contract') || "");
+  // Contract address is now hardcoded — no need to read from localStorage
   const mainContentRef = useRef(null);
   const popupTimeoutRef = useRef(null);
 
@@ -348,37 +356,39 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       login();
       return;
     }
+
+    const quizId = activeQuiz?.title || 'Grand Master Quiz';
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+    // 90-day cooldown check
+    const existingClaim = claimedRewardsHistory[quizId];
+    if (existingClaim) {
+      const elapsed = Date.now() - existingClaim.timestamp;
+      if (elapsed < NINETY_DAYS_MS) {
+        const daysLeft = Math.ceil((NINETY_DAYS_MS - elapsed) / (24 * 60 * 60 * 1000));
+        setClaimStatus({ success: false, message: `You can claim this reward again in ${daysLeft} day(s). Each quiz allows 1 claim per 90 days.` });
+        return;
+      }
+    }
     
     setIsClaiming(true);
     setClaimStatus(null);
     
-    // Check if we have a QuizRewards contract address for Smart Claim
-    const QUIZ_REWARDS_ADDRESS = localStorage.getItem('quiz_rewards_contract') || "";
+    const QUIZ_REWARDS_ADDRESS = QUIZ_REWARDS_CONTRACT;
 
     try {
       if (QUIZ_REWARDS_ADDRESS) {
-        // --- Smart Claim Mode (Contract Based) ---
-        console.log("Using Smart Claim via contract:", QUIZ_REWARDS_ADDRESS);
-        
-        // 1. Get signature from server
         const sigRes = await fetch('http://127.0.0.1:3001/api/sign-reward', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userAddress: walletAddress,
-            quizId: activeQuiz?.title || 'Grand Master Quiz',
-            amount: 10
-          })
+          body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
         });
-        
         const sigData = await sigRes.json();
         if (!sigRes.ok) throw new Error(sigData.error || 'Failed to get signature');
 
-        // 2. Execute contract call
         const eip1193provider = await wallets[0].getEthereumProvider();
         const provider = new ethers.providers.Web3Provider(eip1193provider);
         const signer = provider.getSigner();
-        
         const contract = new ethers.Contract(
           QUIZ_REWARDS_ADDRESS,
           [
@@ -387,39 +397,31 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           ],
           signer
         );
-
         const tx = await contract.claimReward(sigData.quizId, sigData.amount, sigData.signature);
         setClaimStatus({ success: true, message: "Transaction submitted! Waiting for confirmation..." });
-        
         await tx.wait();
-        setClaimStatus({ success: true, message: "Successfully claimed 10 G$ on-chain!" });
-
       } else {
-        // --- Direct Transfer mode ---
         const res = await fetch('http://127.0.0.1:3001/api/claim-reward', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userAddress: walletAddress,
-            quizId: activeQuiz?.title || 'Grand Master Quiz',
-            amount: 10 
-          })
+          body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
         });
-        
-        if (!res.ok) {
-          throw new Error('Server unavailable. Please make sure the backend server is running on port 3001.');
-        }
-
-        const data = await res.json();
-        setClaimStatus({ success: true, message: data.message });
+        if (!res.ok) throw new Error('Server unavailable. Make sure the backend is running on port 3001.');
+        await res.json();
       }
+
+      // Record the claim
+      const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now() } };
+      setClaimedRewardsHistory(newHistory);
+      localStorage.setItem('goodgov_claim_history', JSON.stringify(newHistory));
+      setClaimStatus({ success: true });
+      setShowClaimSuccessModal(true);
       
     } catch (err) {
       console.error(err);
-      // Show a friendly error or a success fallback if server is not available
       setClaimStatus({ 
         success: false, 
-        message: err.message || "Failed to claim reward. Please try again later or make sure the backend server is running." 
+        message: err.message || "Failed to claim reward. Please try again later."
       });
     } finally {
       setIsClaiming(false);
@@ -485,15 +487,16 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     const currentQuestion = shuffledQuestions[currentQuestionIndex];
     const correctIndex = currentQuestion.correct;
     
-    // Get indices of incorrect answers
+    // Get indices of incorrect answers that are NOT already hidden
     const incorrectIndices = currentQuestion.options
       .map((_, i) => i)
-      .filter(i => i !== correctIndex);
+      .filter(i => i !== correctIndex && !hiddenOptions.includes(i));
       
-    // Shuffle and pick 2 to hide
+    // Shuffle and pick 2 to hide (or all remaining if fewer than 2)
     const toHide = incorrectIndices.sort(() => 0.5 - Math.random()).slice(0, 2);
     
-    setHiddenOptions(toHide);
+    // Merge with already-hidden options so using both lifelines leaves only the correct answer
+    setHiddenOptions(prev => [...prev, ...toHide]);
     setLifelines(prev => ({ ...prev, [type]: false }));
   };
 
@@ -598,7 +601,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       }
 
       return (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: isMobile ? '24px 16px' : '40px', paddingTop: isMobile ? '60px' : '40px', overflowY: 'auto', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center' }}>
           <div style={{ maxWidth: '700px', width: '100%' }}>
             {/* Header Section */}
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
@@ -695,70 +698,90 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             </div>
 
             {/* Reward Section (if applicable) */}
-            {isPerfectRun && shuffledQuestions.length === 20 && (
-              <div style={{ 
-                background: 'linear-gradient(180deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.03) 100%)', 
-                border: '1.5px solid rgba(45,212,191,0.25)', 
-                borderRadius: '20px', 
-                padding: '24px', 
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '1.75rem' }}>💰</div>
-                  <div>
-                    <div style={{ fontWeight: '800', color: '#2dd4bf', fontSize: '1.1rem' }}>Reward Available</div>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Claim your 10 G$ for perfect performance</div>
+            {isPerfectRun && shuffledQuestions.length === 20 && (() => {
+              const quizId = activeQuiz?.title || 'Grand Master Quiz';
+              const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+              const existingClaim = claimedRewardsHistory[quizId];
+              const alreadyClaimed = existingClaim && (Date.now() - existingClaim.timestamp) < NINETY_DAYS_MS;
+              const daysUntilNext = alreadyClaimed ? Math.ceil((NINETY_DAYS_MS - (Date.now() - existingClaim.timestamp)) / (24*60*60*1000)) : 0;
+              return (
+                <div style={{ 
+                  background: alreadyClaimed
+                    ? 'linear-gradient(180deg, rgba(100,116,139,0.08) 0%, rgba(100,116,139,0.03) 100%)'
+                    : 'linear-gradient(180deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)', 
+                  border: `1.5px solid ${alreadyClaimed ? 'rgba(100,116,139,0.3)' : 'rgba(45,212,191,0.3)'}`, 
+                  borderRadius: '24px', 
+                  padding: '28px', 
+                  marginBottom: '20px',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {/* Shimmer effect for unclaimed */}
+                  {!alreadyClaimed && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 40%, rgba(45,212,191,0.05) 50%, transparent 60%)', animation: 'shimmer 3s infinite', pointerEvents: 'none' }} />
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+                    <div style={{ 
+                      width: '52px', height: '52px', borderRadius: '16px',
+                      background: alreadyClaimed ? 'rgba(100,116,139,0.15)' : 'rgba(45,212,191,0.15)',
+                      border: `1px solid ${alreadyClaimed ? 'rgba(100,116,139,0.3)' : 'rgba(45,212,191,0.3)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0
+                    }}>
+                      {alreadyClaimed ? '✅' : '🏅'}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '900', color: alreadyClaimed ? '#94a3b8' : '#2dd4bf', fontSize: '1.05rem', marginBottom: '3px' }}>
+                        {alreadyClaimed ? 'Reward Already Claimed' : '🎉 Reward Unlocked — 10 G$'}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        {alreadyClaimed 
+                          ? `Next claim available in ${daysUntilNext} day${daysUntilNext !== 1 ? 's' : ''}` 
+                          : 'You earned 10 GoodDollar for perfect mastery'}
+                      </div>
+                    </div>
                   </div>
+
+                  {alreadyClaimed ? (
+                    <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#64748b', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>Cooldown active · 1 claim per 90 days per quiz</span>
+                    </div>
+                  ) : claimStatus && !claimStatus.success ? (
+                    <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(239,68,68,0.1)', border: '1.5px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '0.88rem', fontWeight: '600' }}>
+                      ⚠️ {claimStatus.message}
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={handleDirectClaim}
+                      disabled={isClaiming}
+                      style={{ 
+                        width: '100%', 
+                        padding: '18px 24px', 
+                        borderRadius: '16px', 
+                        background: isClaiming ? '#1e293b' : 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                        color: isClaiming ? '#64748b' : '#000', 
+                        fontWeight: '900', 
+                        border: 'none',
+                        cursor: isClaiming ? 'wait' : 'pointer', 
+                        fontSize: '1rem',
+                        letterSpacing: '0.02em',
+                        boxShadow: isClaiming ? 'none' : '0 8px 32px rgba(45,212,191,0.3)',
+                        transition: 'all 0.2s ease',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                      }}
+                      onMouseEnter={(e) => { if (!isClaiming) { e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.5)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}}
+                      onMouseLeave={(e) => { if (!isClaiming) { e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}}
+                    >
+                      {isClaiming ? (
+                        <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #475569', borderTopColor: '#2dd4bf', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Processing...</>
+                      ) : (
+                        <>🏆 Claim 10 G$ Reward</>
+                      )}
+                    </button>
+                  )}
                 </div>
-                
-                {claimStatus ? (
-                   <div style={{ 
-                     padding: '14px 18px', 
-                     borderRadius: '12px', 
-                     background: claimStatus.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                     border: `1.5px solid ${claimStatus.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, 
-                     color: claimStatus.success ? '#10b981' : '#ef4444', 
-                     fontSize: '0.9rem', 
-                     fontWeight: '700',
-                     textAlign: 'center'
-                   }}>
-                     {claimStatus.success ? '🎉 ' : '⚠️ '}{claimStatus.message}
-                   </div>
-                ) : (
-                  <button 
-                    onClick={handleDirectClaim}
-                    disabled={isClaiming}
-                    style={{ 
-                      width: '100%', 
-                      padding: '16px 24px', 
-                      borderRadius: '14px', 
-                      background: isClaiming ? '#1e293b' : 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                      color: 'black', 
-                      fontWeight: '800', 
-                      border: 'none',
-                      cursor: isClaiming ? 'wait' : 'pointer', 
-                      fontSize: '1rem',
-                      boxShadow: '0 8px 24px rgba(45, 212, 191, 0.25)',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isClaiming) {
-                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(45, 212, 191, 0.35)';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isClaiming) {
-                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(45, 212, 191, 0.25)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }
-                    }}
-                  >
-                    {isClaiming ? 'Transferring 10 G$...' : 'Claim 10 G$ Reward'}
-                  </button>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1639,6 +1662,9 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const renderProfile = () => {
     const totalScore = Object.values(perfectQuizzes).flat().length * 100;
     const completedCount = Object.values(perfectQuizzes).flat().length;
+    const totalClaimed = Object.values(claimedRewardsHistory).reduce((sum, c) => sum + (c.amount || 0), 0);
+    const claimCount = Object.keys(claimedRewardsHistory).length;
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
     return (
       <div style={{ 
@@ -1648,112 +1674,139 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         padding: isMobile ? '0' : '0 40px'
       }}>
 
-
         {/* Profile Banner */}
         <div style={{ 
-          backgroundColor: '#0f172a', borderRadius: '32px', 
-          padding: isMobile ? '32px 24px' : '48px 60px', marginBottom: '40px',
+          background: 'linear-gradient(135deg, #0f1a2e 0%, #0a1628 100%)',
+          borderRadius: '32px', 
+          padding: isMobile ? '32px 24px' : '48px 60px', marginBottom: '32px',
           display: 'flex', flexDirection: isMobile ? 'column' : 'row',
           alignItems: 'center', justifyContent: 'space-between',
-          gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.05)'
+          gap: '40px', boxShadow: '0 20px 80px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden',
+          border: '1px solid rgba(45,212,191,0.15)'
         }}>
-          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
-          <div style={{ position: 'absolute', bottom: '-100px', left: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '320px', height: '320px', background: 'radial-gradient(circle, rgba(45,212,191,0.12) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '280px', height: '280px', background: 'radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%)', zIndex: 0 }} />
           
           <div style={{ flex: 1, zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #2dd4bf, transparent)' }} />
               <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Agent Profile</span>
             </div>
-            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Mission <span style={{ color: '#2dd4bf' }}>Achievements</span></h2>
-            <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
-              Review your overall progress, secured sectors, and managed assets across the decentralized frontier.
+            <h2 style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: '900', color: 'white', marginBottom: '12px', letterSpacing: '-0.03em' }}>Mission <span style={{ color: '#2dd4bf' }}>Achievements</span></h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.6', maxWidth: '560px', marginBottom: '24px' }}>
+              Track your progress, earned rewards, and sector mastery across the decentralized frontier.
             </p>
+            {walletAddress && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '100px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2dd4bf', boxShadow: '0 0 8px #2dd4bf' }} />
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontFamily: 'monospace' }}>{walletAddress.slice(0,6)}...{walletAddress.slice(-4)}</span>
+              </div>
+            )}
           </div>
           {!isMobile && (
-            <div style={{ width: '160px', height: '160px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyItems: 'center', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)', filter: 'blur(20px)' }} />
-              <div style={{ zIndex: 1, fontSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%', animation: 'float 4s ease-in-out infinite' }}>
-                👤
-              </div>
+            <div style={{ width: '150px', height: '150px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45,212,191,0.2) 0%, transparent 70%)', filter: 'blur(20px)' }} />
+              <div style={{ zIndex: 1, fontSize: '5rem', animation: 'float 4s ease-in-out infinite' }}>👤</div>
             </div>
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-          <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Total Mastery</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>{totalScore} <span style={{ fontSize: '1rem', color: '#2dd4bf' }}>PTS</span></div>
-          </div>
-          <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Missions Cleared</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>{completedCount} <span style={{ fontSize: '1rem', color: '#2dd4bf' }}>SECURED</span></div>
-          </div>
-          <div style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '24px', padding: '32px' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Current Rank</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>Field Agent</div>
-          </div>
+        {/* Stats Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+          {[
+            { label: 'Total Mastery', value: totalScore, suffix: 'PTS', color: '#2dd4bf', icon: '⚡' },
+            { label: 'Missions Cleared', value: completedCount, suffix: 'SECURED', color: '#a855f7', icon: '🏛️' },
+            { label: 'G$ Claimed', value: totalClaimed, suffix: 'G$', color: '#f59e0b', icon: '🏅' },
+            { label: 'Claim Events', value: claimCount, suffix: 'TOTAL', color: '#3b82f6', icon: '📋' },
+          ].map((stat, i) => (
+            <div key={i} style={{ backgroundColor: '#0a0f1e', border: '1px solid #1e293b', borderRadius: '20px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '-20px', right: '-10px', fontSize: '3rem', opacity: 0.06 }}>{stat.icon}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>{stat.label}</div>
+              <div style={{ fontSize: '2rem', fontWeight: '900', color: 'white', lineHeight: 1 }}>{stat.value}</div>
+              <div style={{ fontSize: '0.7rem', color: stat.color, fontWeight: '800', marginTop: '4px' }}>{stat.suffix}</div>
+            </div>
+          ))}
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '24px', padding: '40px' }}>
-           <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'white', marginBottom: '24px' }}>Sector Breakthroughs</h3>
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-             {categories.filter(c => c !== 'All').map(cat => (
-               <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                   <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: perfectQuizzes[cat]?.length > 0 ? '#2dd4bf20' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: perfectQuizzes[cat]?.length > 0 ? '#2dd4bf' : '#475569' }}>
-                     {cat === 'DAO knowledge' ? <Shield size={20} /> : cat === 'Web3 Basics' ? <Zap size={20} /> : <Globe size={20} />}
-                   </div>
-                   <div>
-                     <div style={{ fontWeight: '800', color: 'white' }}>{cat.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}</div>
-                     <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{perfectQuizzes[cat]?.length || 0} of {stageQuizCounts[cat]} secured</div>
-                   </div>
-                 </div>
-                 <div style={{ height: '8px', width: '120px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${((perfectQuizzes[cat]?.length || 0) / stageQuizCounts[cat]) * 100}%`, backgroundColor: '#2dd4bf' }} />
-                 </div>
-               </div>
-             ))}
-           </div>
-        </div>
-
-        {/* GoodDollar Integration Section Redesigned */}
-        <div style={{ 
-          marginTop: '32px', 
-          backgroundColor: '#0a0f1e', 
-          border: '1.5px solid rgba(0, 195, 174, 0.4)', 
-          borderRadius: '32px', 
-          padding: isMobile ? '32px 24px' : '48px 60px', 
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 20px 80px rgba(0, 195, 174, 0.1)',
-        }}>
-           {/* Decorative Background */ }
-           <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%', background: 'radial-gradient(circle at 100% 50%, rgba(0, 195, 174, 0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
-           
-           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '40px', position: 'relative', zIndex: 1 }}>
-             <div style={{ maxWidth: '600px' }}>
-                <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '32px' }}>
-                  Users must verify with GoodDollar before they can claim the reward.
-                </p>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <a 
-                    href="#" 
-                    onClick={handleVerifyIdentity}
-                    style={{ 
-                      padding: '16px 28px', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', color: 'white', 
-                      border: '1px solid rgba(255,255,255,0.1)', fontWeight: '800', textDecoration: 'none', textAlign: 'center', transition: 'all 0.2s',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-                  >
-                    VERIFY IDENTITY
-                  </a>
+        {/* Sector Breakthroughs */}
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '24px', padding: isMobile ? '24px' : '36px', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2dd4bf', boxShadow: '0 0 8px #2dd4bf' }} />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', margin: 0 }}>Sector Breakthroughs</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {categories.filter(c => c !== 'All').map(cat => {
+              const count = perfectQuizzes[cat]?.length || 0;
+              const total = stageQuizCounts[cat];
+              const pct = total > 0 ? (count / total) * 100 : 0;
+              return (
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 20px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: count > 0 ? 'rgba(45,212,191,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: count > 0 ? '#2dd4bf' : '#475569', flexShrink: 0 }}>
+                    {cat === 'DAO knowledge' ? <Shield size={18} /> : cat === 'Web3 Basics' ? <Zap size={18} /> : <Globe size={18} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontWeight: '700', color: 'white', fontSize: '0.9rem' }}>{cat.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}</span>
+                      <span style={{ fontSize: '0.8rem', color: count > 0 ? '#2dd4bf' : '#475569', fontWeight: '700' }}>{count}/{total}</span>
+                    </div>
+                    <div style={{ height: '6px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? 'linear-gradient(90deg, #2dd4bf, #14b8a6)' : '#2dd4bf', borderRadius: '3px', transition: 'width 0.6s ease' }} />
+                    </div>
+                  </div>
                 </div>
-             </div>
-           </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Claim History */}
+        <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(245,158,11,0.02) 100%)', border: '1.5px solid rgba(245,158,11,0.2)', borderRadius: '24px', padding: isMobile ? '24px' : '36px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🏅</div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white', margin: 0 }}>G$ Reward History</h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>10 G$ per quiz · 90-day cooldown applies</p>
+            </div>
+          </div>
+          {claimCount === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '12px', opacity: 0.4 }}>🪙</div>
+              <div style={{ color: '#475569', fontSize: '0.9rem', fontWeight: '600' }}>No claims yet</div>
+              <div style={{ color: '#334155', fontSize: '0.8rem', marginTop: '4px' }}>Complete a quiz with a perfect score to earn 10 G$</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {Object.entries(claimedRewardsHistory).map(([qId, claim], i) => {
+                const elapsed = Date.now() - claim.timestamp;
+                const cooldownActive = elapsed < NINETY_DAYS_MS;
+                const daysLeft = Math.ceil((NINETY_DAYS_MS - elapsed) / (24*60*60*1000));
+                const claimDate = new Date(claim.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderRadius: '14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 8px rgba(245,158,11,0.5)', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ color: 'white', fontWeight: '700', fontSize: '0.88rem' }}>{qId}</div>
+                        <div style={{ color: '#475569', fontSize: '0.75rem' }}>{claimDate}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontWeight: '900', color: '#f59e0b', fontSize: '0.95rem' }}>+{claim.amount} G$</span>
+                      {cooldownActive && (
+                        <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', background: 'rgba(100,116,139,0.15)', border: '1px solid rgba(100,116,139,0.2)', padding: '4px 10px', borderRadius: '100px' }}>
+                          Next in {daysLeft}d
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ marginTop: '8px', padding: '14px 18px', borderRadius: '14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>Total Earned</span>
+                <span style={{ fontWeight: '900', color: '#f59e0b', fontSize: '1.1rem' }}>{totalClaimed} G$</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2169,11 +2222,128 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         </main>
       </div>
 
+      {/* Claim Success Modal */}
+      {showClaimSuccessModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          backgroundColor: 'rgba(5,10,21,0.92)',
+          backdropFilter: 'blur(16px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '24px',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            maxWidth: '480px', width: '100%',
+            background: 'linear-gradient(160deg, #0d1f35 0%, #050a15 100%)',
+            border: '1.5px solid rgba(45,212,191,0.35)',
+            borderRadius: '32px',
+            padding: isMobile ? '40px 28px' : '56px 48px',
+            textAlign: 'center',
+            boxShadow: '0 40px 120px rgba(45,212,191,0.15), 0 0 0 1px rgba(45,212,191,0.1)',
+            animation: 'popUpCenter 0.45s cubic-bezier(0.16,1,0.3,1) forwards',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Animated background glow */}
+            <div style={{ position: 'absolute', top: '-60px', left: '50%', transform: 'translateX(-50%)', width: '280px', height: '280px', background: 'radial-gradient(circle, rgba(45,212,191,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: '-40px', left: '50%', transform: 'translateX(-50%)', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+            {/* Trophy Icon */}
+            <div style={{
+              width: '100px', height: '100px', borderRadius: '28px',
+              background: 'linear-gradient(135deg, rgba(45,212,191,0.2) 0%, rgba(45,212,191,0.08) 100%)',
+              border: '2px solid rgba(45,212,191,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '3.2rem', margin: '0 auto 28px',
+              boxShadow: '0 20px 60px rgba(45,212,191,0.2)',
+              position: 'relative', zIndex: 1
+            }}>
+              🏆
+            </div>
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Success Badge */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 16px', borderRadius: '100px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', marginBottom: '20px' }}>
+                <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+                <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Claim Successful</span>
+              </div>
+
+              <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.2rem', fontWeight: '900', color: 'white', marginBottom: '10px', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                Reward Claimed
+                <span style={{ display: 'block', background: 'linear-gradient(135deg, #2dd4bf, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                  Successfully! 🎉
+                </span>
+              </h2>
+
+              <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '32px' }}>
+                Your <strong style={{ color: '#f59e0b' }}>10 GoodDollar (G$)</strong> reward has been sent to your wallet.
+              </p>
+
+              {/* Amount card */}
+              <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.04) 100%)', border: '1.5px solid rgba(245,158,11,0.25)', borderRadius: '20px', padding: '24px', marginBottom: '28px' }}>
+                <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '8px' }}>Amount Received</div>
+                <div style={{ fontSize: '3rem', fontWeight: '900', color: '#f59e0b', lineHeight: 1 }}>10 G$</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '6px' }}>GoodDollar Token · Celo Network</div>
+              </div>
+
+              {/* Check wallet CTA */}
+              <div style={{ background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.2)', borderRadius: '16px', padding: '18px 20px', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.4rem' }}>👛</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: '800', color: '#2dd4bf', fontSize: '0.9rem' }}>Please check your wallet</div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Tokens may take a minute to appear. Check your GoodDollar wallet or connected address.</div>
+                </div>
+              </div>
+
+              {/* Cooldown notice */}
+              <div style={{ fontSize: '0.78rem', color: '#475569', marginBottom: '28px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
+                🔒 Next claim for this quiz available in <strong style={{ color: '#64748b' }}>90 days</strong>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <a
+                  href="https://wallet.gooddollar.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'block', padding: '16px', borderRadius: '16px', background: 'linear-gradient(135deg, #2dd4bf, #0d9488)', color: 'black', fontWeight: '900', fontSize: '0.95rem', textDecoration: 'none', textAlign: 'center', boxShadow: '0 8px 24px rgba(45,212,191,0.25)' }}
+                >
+                  Open GoodDollar Wallet
+                </a>
+                <button
+                  onClick={() => setShowClaimSuccessModal(false)}
+                  style={{ padding: '14px', borderRadius: '16px', background: 'transparent', border: '1.5px solid #1e293b', color: '#64748b', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.color = '#94a3b8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e293b'; e.currentTarget.style.color = '#64748b'; }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global CSS */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popUpCenter {
+          from { opacity: 0; transform: scale(0.88) translateY(20px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-12px); }
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
