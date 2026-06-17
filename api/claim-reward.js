@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { createClient } from '@supabase/supabase-js';
 
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
 const RPC_URL = "https://forno.celo.org";
@@ -13,8 +14,14 @@ const ERC20_ABI = [
 
 const gdTokenContract = new ethers.Contract(GD_TOKEN_ADDRESS, ERC20_ABI, wallet);
 
-// In-memory claimed quizzes (for this serverless function instance)
-const claimedQuizzes = new Set();
+// Initialize Supabase (if keys are available)
+let supabase;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -27,30 +34,57 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    const claimKey = `${userAddress}-${quizId}`;
-    if (claimedQuizzes.has(claimKey)) {
-      return res.status(400).json({ error: "Reward already claimed for this specific mission!" });
+    // Check if already claimed (using Supabase if available)
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('claimed_quizzes')
+        .select('id, tx_hash')
+        .eq('wallet_address', userAddress)
+        .eq('quiz_id', quizId)
+        .single();
+
+      if (data) {
+        return res.status(400).json({ error: "Reward already claimed for this specific mission!" });
+      }
     }
 
-    if (TREASURY_PRIVATE_KEY === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+    let txHash = "0xSimulatedTransactionHash...";
+    let message = "Simulation successful (No real private key found).";
+
+    if (TREASURY_PRIVATE_KEY !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+      console.log(`Processing reward of ${amount} G$ to ${userAddress} for ${quizId}...`);
+      const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
+      const tx = await gdTokenContract.transfer(userAddress, amountWei);
+      console.log(`Transaction submitted! Hash: ${tx.hash}`);
+      txHash = tx.hash;
+      await tx.wait(1);
+      console.log(`Transaction confirmed on Celo!`);
+      message = `Successfully transferred ${amount} G$!`;
+    } else {
       console.log(`[SIMULATION] Would have sent ${amount} G$ to ${userAddress}`);
-      claimedQuizzes.add(claimKey);
-      return res.json({ success: true, txHash: "0xSimulatedTransactionHash...", message: "Simulation successful (No real private key found)." });
     }
 
-    console.log(`Processing reward of ${amount} G$ to ${userAddress} for ${quizId}...`);
-    const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
-    const tx = await gdTokenContract.transfer(userAddress, amountWei);
-    console.log(`Transaction submitted! Hash: ${tx.hash}`);
-    await tx.wait(1);
-    console.log(`Transaction confirmed on Celo!`);
+    // Record in Supabase if available (with tx hash)
+    if (supabase) {
+      // First check again to make sure it's not already there (race condition)
+      const { data: existing } = await supabase
+        .from('claimed_quizzes')
+        .select('id')
+        .eq('wallet_address', userAddress)
+        .eq('quiz_id', quizId)
+        .single();
 
-    claimedQuizzes.add(claimKey);
+      if (!existing) {
+        await supabase.from('claimed_quizzes').insert([
+          { wallet_address: userAddress, quiz_id: quizId, amount: amount, tx_hash: txHash }
+        ]);
+      }
+    }
 
     res.json({
       success: true,
-      txHash: tx.hash,
-      message: `Successfully transferred ${amount} G$!`
+      txHash: txHash,
+      message: message
     });
   } catch (error) {
     console.error("Transfer error:", error);

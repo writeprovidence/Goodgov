@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client (if environment variables are available)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 import { 
   Book,
   BookOpen, 
@@ -105,9 +111,23 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimStatus, setClaimStatus] = useState(null);
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
+
+  // Helper functions for wallet-specific localStorage
+  const getWalletStorageKey = (key) => `goodgov_${walletAddress || 'anonymous'}_${key}`;
+  
+  const getWalletStorageItem = (key, defaultValue) => {
+    const storageKey = getWalletStorageKey(key);
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : defaultValue;
+  };
+  
+  const setWalletStorageItem = (key, value) => {
+    const storageKey = getWalletStorageKey(key);
+    localStorage.setItem(storageKey, JSON.stringify(value));
+  };
+
   const [claimedRewardsHistory, setClaimedRewardsHistory] = useState(() => {
-    const saved = localStorage.getItem('goodgov_claim_history');
-    return saved ? JSON.parse(saved) : {}; // { quizId: { amount: 10, timestamp: ms } }
+    return getWalletStorageItem('claim_history', {}); // { quizId: { amount: 10, timestamp: ms } }
   });
 
   const handleVerifyIdentity = async (e) => {
@@ -211,47 +231,146 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
 
   const [completedStages, setCompletedStages] = useState(() => {
-    const saved = localStorage.getItem('goodgov_completed_stages');
-    return saved ? JSON.parse(saved) : {
+    return getWalletStorageItem('completed_stages', {
       'Mastery Challenges': false,
       'DAO knowledge': false,
       'Ecosystem specific': false,
       'Web3 Basics': false,
-    };
+    });
   });
   const [perfectQuizzes, setPerfectQuizzes] = useState(() => {
-    const saved = localStorage.getItem('goodgov_perfect_quizzes');
-    return saved ? JSON.parse(saved) : {
+    return getWalletStorageItem('perfect_quizzes', {
       'Mastery Challenges': [],
       'DAO knowledge': [],
       'Ecosystem specific': [],
       'Web3 Basics': [],
-    };
+    });
   });
 
   const [claimedRewards] = useState(() => {
-    const saved = localStorage.getItem('goodgov_claimed_rewards');
-    return saved ? JSON.parse(saved) : {
+    return getWalletStorageItem('claimed_rewards', {
       'Mastery Challenges': false,
       'DAO knowledge': false,
       'Ecosystem specific': false,
       'Web3 Basics': false,
-    };
+    });
   });
 
+  // Sync state to wallet-specific localStorage when wallet changes or state updates
   useEffect(() => {
-    localStorage.setItem('goodgov_claimed_rewards', JSON.stringify(claimedRewards));
-  }, [claimedRewards]);
+    if (walletAddress) {
+      setWalletStorageItem('claimed_rewards', claimedRewards);
+      setWalletStorageItem('completed_stages', completedStages);
+      setWalletStorageItem('perfect_quizzes', perfectQuizzes);
+      setWalletStorageItem('claim_history', claimedRewardsHistory);
+    }
+  }, [walletAddress, claimedRewards, completedStages, perfectQuizzes, claimedRewardsHistory]);
 
+  // Fetch data from Supabase (or localStorage as fallback)
+  const fetchUserData = useCallback(async () => {
+    if (!walletAddress) return;
 
+    if (supabase) {
+      try {
+        // Fetch claimed rewards history from Supabase
+        const { data: claimedData, error: claimedError } = await supabase
+          .from('claimed_quizzes')
+          .select('*')
+          .eq('wallet_address', walletAddress);
 
+        if (!claimedError && claimedData) {
+          const history = {};
+          claimedData.forEach(item => {
+            history[item.quiz_id] = {
+              amount: item.amount,
+              timestamp: new Date(item.claimed_at).getTime(),
+              txHash: item.tx_hash
+            };
+          });
+          setClaimedRewardsHistory(history);
+        }
+
+        // Fetch completed stages from Supabase
+        const { data: stagesData, error: stagesError } = await supabase
+          .from('completed_stages')
+          .select('*')
+          .eq('wallet_address', walletAddress);
+
+        if (!stagesError && stagesData) {
+          const completed = {
+            'Mastery Challenges': false,
+            'DAO knowledge': false,
+            'Ecosystem specific': false,
+            'Web3 Basics': false,
+          };
+          stagesData.forEach(item => {
+            if (completed.hasOwnProperty(item.stage_name)) {
+              completed[item.stage_name] = true;
+            }
+          });
+          setCompletedStages(completed);
+        }
+
+        // Fetch perfect quizzes from Supabase
+        const { data: perfectData, error: perfectError } = await supabase
+          .from('perfect_quizzes')
+          .select('*')
+          .eq('wallet_address', walletAddress);
+
+        if (!perfectError && perfectData) {
+          const perfect = {
+            'Mastery Challenges': [],
+            'DAO knowledge': [],
+            'Ecosystem specific': [],
+            'Web3 Basics': [],
+          };
+          perfectData.forEach(item => {
+            if (perfect.hasOwnProperty(item.stage_name)) {
+              perfect[item.stage_name].push(item.quiz_title);
+            }
+          });
+          setPerfectQuizzes(perfect);
+        }
+
+      } catch (err) {
+        console.error('Error fetching from Supabase:', err);
+        // Fall back to localStorage if Supabase fails
+        setClaimedRewardsHistory(getWalletStorageItem('claim_history', {}));
+        setCompletedStages(getWalletStorageItem('completed_stages', {
+          'Mastery Challenges': false,
+          'DAO knowledge': false,
+          'Ecosystem specific': false,
+          'Web3 Basics': false,
+        }));
+        setPerfectQuizzes(getWalletStorageItem('perfect_quizzes', {
+          'Mastery Challenges': [],
+          'DAO knowledge': [],
+          'Ecosystem specific': [],
+          'Web3 Basics': [],
+        }));
+      }
+    } else {
+      // No Supabase, use localStorage
+      setClaimedRewardsHistory(getWalletStorageItem('claim_history', {}));
+      setCompletedStages(getWalletStorageItem('completed_stages', {
+        'Mastery Challenges': false,
+        'DAO knowledge': false,
+        'Ecosystem specific': false,
+        'Web3 Basics': false,
+      }));
+      setPerfectQuizzes(getWalletStorageItem('perfect_quizzes', {
+        'Mastery Challenges': [],
+        'DAO knowledge': [],
+        'Ecosystem specific': [],
+        'Web3 Basics': [],
+      }));
+    }
+  }, [walletAddress, supabase]);
+
+  // Refresh state when wallet changes
   useEffect(() => {
-    localStorage.setItem('goodgov_completed_stages', JSON.stringify(completedStages));
-  }, [completedStages]);
-
-  useEffect(() => {
-    localStorage.setItem('goodgov_perfect_quizzes', JSON.stringify(perfectQuizzes));
-  }, [perfectQuizzes]);
+    fetchUserData();
+  }, [fetchUserData]);
 
   // Auto-launch quiz if initialMode is provided (from landing page game cards)
   useEffect(() => {
@@ -413,7 +532,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       // Record the claim
       const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now() } };
       setClaimedRewardsHistory(newHistory);
-      localStorage.setItem('goodgov_claim_history', JSON.stringify(newHistory));
       setClaimStatus({ success: true });
       setShowClaimSuccessModal(true);
       
