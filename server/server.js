@@ -9,7 +9,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+// Try loading from project root first, then server directory
+const envPath = path.resolve(__dirname, '..', '.env');
+const serverEnvPath = path.resolve(__dirname, '.env');
+dotenv.config({ path: envPath });
+dotenv.config({ path: serverEnvPath });
 
 const app = express();
 app.use(cors());

@@ -378,7 +378,8 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     try {
       if (QUIZ_REWARDS_ADDRESS) {
-        const sigRes = await fetch('http://127.0.0.1:3001/api/sign-reward', {
+        const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://127.0.0.1:3001';
+        const sigRes = await fetch(`${SERVER_URL}/api/sign-reward`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
@@ -401,7 +402,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         setClaimStatus({ success: true, message: "Transaction submitted! Waiting for confirmation..." });
         await tx.wait();
       } else {
-        const res = await fetch('http://127.0.0.1:3001/api/claim-reward', {
+        const res = await fetch(`${SERVER_URL}/api/claim-reward`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
