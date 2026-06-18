@@ -1782,6 +1782,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             <div id="web3-basics-sector">
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
                 {web3Quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => {
+
                   const isClaimed = !!claimedRewardsHistory[quiz.title];
                   const isPerfect = perfectQuizzes['Basics']?.includes(quiz.title);
                   return (
@@ -1821,11 +1822,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                         <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
                       </div>
                       <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
-                      <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
+                        <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
+                        <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1834,6 +1836,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             <div id="dao-knowledge-sector">
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
                 {daoQuizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => {
+
                   const isClaimed = !!claimedRewardsHistory[quiz.title];
                   const isPerfect = perfectQuizzes['DAO knowledge']?.includes(quiz.title);
                   return (
@@ -1879,6 +1882,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                     </div>
                   );
                 })}
+
               </div>
             </div>
           )}
