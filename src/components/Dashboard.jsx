@@ -1102,6 +1102,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                         </div>
                       </div>
                       
+
                       {getNextQuiz() && (
                         <button 
                           onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
@@ -1131,6 +1132,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                         </button>
                       )}
                       
+
                       <button 
                         onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
                         style={{ 
