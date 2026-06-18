@@ -1,6 +1,0 @@
-﻿
-C:\Users\hp\Desktop\goodgov\src\components\Dashboard.jsx
-  97:9  warning  The 'startQuiz' function makes the dependencies of useEffect Hook (at line 194) change on every render. To fix this, wrap the definition of 'startQuiz' in its own useCallback() Hook  react-hooks/exhaustive-deps
-
-Γ£û 1 problem (0 errors, 1 warning)
-

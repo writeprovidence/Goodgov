@@ -1,7 +1,0 @@
-﻿
-C:\Users\hp\Desktop\goodgov\src\components\Dashboard.jsx
-  194:3  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
-
-Γ£û 1 problem (0 errors, 1 warning)
-  0 errors and 1 warning potentially fixable with the `--fix` option.
-
