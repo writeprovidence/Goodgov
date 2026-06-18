@@ -12,6 +12,7 @@ import Footer from './components/Footer';
 import Dashboard from './components/Dashboard';
 
 import { usePrivy } from '@privy-io/react-auth';
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   const [showDashboard, setShowDashboard] = useState(false);
@@ -43,6 +44,7 @@ function App() {
         <CTA onStart={() => handleStart()} />
       </main>
       <Footer />
+      <Analytics />
     </>
   );
 }
