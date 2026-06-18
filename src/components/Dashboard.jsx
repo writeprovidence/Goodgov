@@ -1093,9 +1093,69 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   </div>
 
                   {alreadyClaimed ? (
-                    <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#64748b', flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>You can only claim each reward once</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ padding: '16px 20px', borderRadius: '14px', background: 'rgba(100,116,139,0.12)', border: '1.5px solid rgba(100,116,139,0.3)', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                        <div style={{ fontSize: '1.5rem', flexShrink: 0, marginTop: '-2px' }}>✅</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.9rem', color: '#e2e8f0', fontWeight: '700', marginBottom: '4px' }}>Reward Already Claimed!</div>
+                          <div style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: '1.5' }}>You've already collected your 10 G$ reward for this quiz. Each quiz can only be claimed once!</div>
+                        </div>
+                      </div>
+                      
+                      {getNextQuiz() && (
+                        <button 
+                          onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
+                          style={{ 
+                            width: '100%', 
+                            padding: '16px 24px', 
+                            borderRadius: '14px', 
+                            fontWeight: '800', 
+                            fontSize: '0.95rem', 
+                            background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                            color: '#000', 
+                            border: 'none', 
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 32px rgba(45,212,191,0.3)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.5)';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.3)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          🎮 Try Next Quiz
+                        </button>
+                      )}
+                      
+                      <button 
+                        onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
+                        style={{ 
+                          background: 'transparent', 
+                          border: '1.5px solid #1e293b', 
+                          color: '#94a3b8', 
+                          width: '100%', 
+                          padding: '14px 20px', 
+                          borderRadius: '12px', 
+                          fontWeight: '700', 
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#334155';
+                          e.currentTarget.style.color = '#e2e8f0';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#1e293b';
+                          e.currentTarget.style.color = '#94a3b8';
+                        }}
+                      >
+                        Browse All Quizzes
+                      </button>
                     </div>
                   ) : claimStatus && !claimStatus.success ? (
                     <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(239,68,68,0.1)', border: '1.5px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '0.88rem', fontWeight: '600' }}>
@@ -1719,24 +1779,46 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           {knowledgeSubTab === 'Basics' && (
             <div id="web3-basics-sector">
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
-                {web3Quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => (
-                  <div key={i} onClick={() => startQuiz(quiz, 'Basics')} style={{
-                    backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b', borderRadius: '22px',
-                    padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
-                    display: 'flex', flexDirection: 'column', gap: '14px'
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor='rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🌐'}</div>
-                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Beginner'}</div>
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
-                      <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
-                    </div>
-                    <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                {web3Quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => {
+                  const isClaimed = !!claimedRewardsHistory[quiz.title];
+                  const isPerfect = perfectQuizzes['Basics']?.includes(quiz.title);
+                  return (
+                    <div key={i} onClick={() => startQuiz(quiz, 'Basics')} style={{
+                      backgroundColor: isClaimed ? 'rgba(245, 158, 11, 0.03)' : '#0a0f1e', 
+                      border: isClaimed ? '1.5px solid rgba(245, 158, 11, 0.3)' : '1.5px solid #1e293b', 
+                      borderRadius: '22px',
+                      padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
+                      display: 'flex', flexDirection: 'column', gap: '14px',
+                      position: 'relative', overflow: 'hidden'
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor=isClaimed ? 'rgba(245,158,11,0.5)' : 'rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor=isClaimed ? 'rgba(245,158,11,0.3)' : '#1e293b'; e.currentTarget.style.boxShadow='none'; }}
+                    >
+                      {isClaimed && (
+                        <div style={{
+                          position: 'absolute', top: '10px', right: '-28px',
+                          backgroundColor: '#f59e0b', color: 'black',
+                          padding: '4px 32px', fontSize: '0.6rem', fontWeight: '900',
+                          transform: 'rotate(45deg)', letterSpacing: '0.1em'
+                        }}>CLAIMED</div>
+                      )}
+                      {isPerfect && !isClaimed && (
+                        <div style={{
+                          position: 'absolute', top: '10px', right: '-28px',
+                          backgroundColor: '#2dd4bf', color: 'black',
+                          padding: '4px 32px', fontSize: '0.6rem', fontWeight: '900',
+                          transform: 'rotate(45deg)', letterSpacing: '0.1em'
+                        }}>PERFECT</div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🌐'}</div>
+                        <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Beginner'}</div>
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                        <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                      </div>
+                      <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
                       <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
                     </div>
@@ -1749,29 +1831,52 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           {knowledgeSubTab === 'DAO knowledge' && (
             <div id="dao-knowledge-sector">
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
-                {daoQuizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => (
-                  <div key={i} onClick={() => startQuiz(quiz, quiz.stage)} style={{
-                    backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b', borderRadius: '22px',
-                    padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
-                    display: 'flex', flexDirection: 'column', gap: '14px'
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor='rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🏛️'}</div>
-                      <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Beginner'}</div>
+                {daoQuizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => {
+                  const isClaimed = !!claimedRewardsHistory[quiz.title];
+                  const isPerfect = perfectQuizzes['DAO knowledge']?.includes(quiz.title);
+                  return (
+                    <div key={i} onClick={() => startQuiz(quiz, quiz.stage)} style={{
+                      backgroundColor: isClaimed ? 'rgba(245, 158, 11, 0.03)' : '#0a0f1e', 
+                      border: isClaimed ? '1.5px solid rgba(245, 158, 11, 0.3)' : '1.5px solid #1e293b', 
+                      borderRadius: '22px',
+                      padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
+                      display: 'flex', flexDirection: 'column', gap: '14px',
+                      position: 'relative', overflow: 'hidden'
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor=isClaimed ? 'rgba(245,158,11,0.5)' : 'rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor=isClaimed ? 'rgba(245,158,11,0.3)' : '#1e293b'; e.currentTarget.style.boxShadow='none'; }}
+                    >
+                      {isClaimed && (
+                        <div style={{
+                          position: 'absolute', top: '10px', right: '-28px',
+                          backgroundColor: '#f59e0b', color: 'black',
+                          padding: '4px 32px', fontSize: '0.6rem', fontWeight: '900',
+                          transform: 'rotate(45deg)', letterSpacing: '0.1em'
+                        }}>CLAIMED</div>
+                      )}
+                      {isPerfect && !isClaimed && (
+                        <div style={{
+                          position: 'absolute', top: '10px', right: '-28px',
+                          backgroundColor: '#2dd4bf', color: 'black',
+                          padding: '4px 32px', fontSize: '0.6rem', fontWeight: '900',
+                          transform: 'rotate(45deg)', letterSpacing: '0.1em'
+                        }}>PERFECT</div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem' }}>{quiz.emoji || '🏛️'}</div>
+                        <div style={{ padding:'3px 9px', borderRadius:'6px', background:'rgba(255,255,255,0.05)', fontSize:'0.62rem', fontWeight:'600', color:'#64748b' }}>{quiz.level || 'Beginner'}</div>
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
+                        <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
+                      </div>
+                      <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
+                        <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ fontSize:'1rem', fontWeight:'700', color:'white', marginBottom:'6px' }}>{quiz.title}</h3>
-                      <p style={{ fontSize:'0.8rem', color:'#94a3b8', lineHeight:'1.5', margin:0 }}>{quiz.description}</p>
-                    </div>
-                    <div style={{ marginTop:'auto', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'6px', color:'#2dd4bf', fontSize:'0.72rem', fontWeight:'700' }}>Start mission <ChevronRight size={13} /></div>
-                      <span style={{ fontSize:'0.72rem', color:'#475569', fontWeight:'600' }}>{quiz.time || '10 min'}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1782,15 +1887,36 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 {Object.entries(ECOSYSTEM_QUIZZES).flatMap(([slug, quizzes]) => 
                   quizzes.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((quiz, i) => {
                     const eco = ecosystems.find(e => e.slug === slug);
+                    const isClaimed = !!claimedRewardsHistory[quiz.title];
+                    const isPerfect = perfectQuizzes[quiz.stage]?.includes(quiz.title);
                     return (
                       <div key={`${slug}-${i}`} onClick={() => startQuiz(quiz, quiz.stage)} style={{
-                        backgroundColor: '#0a0f1e', border: '1.5px solid #1e293b', borderRadius: '22px',
+                        backgroundColor: isClaimed ? 'rgba(245, 158, 11, 0.03)' : '#0a0f1e', 
+                        border: isClaimed ? '1.5px solid rgba(245, 158, 11, 0.3)' : '1.5px solid #1e293b', 
+                        borderRadius: '22px',
                         padding: '26px', cursor: 'pointer', transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
-                        display: 'flex', flexDirection: 'column', gap: '14px'
+                        display: 'flex', flexDirection: 'column', gap: '14px',
+                        position: 'relative', overflow: 'hidden'
                       }}
-                        onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor='rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor='#1e293b'; e.currentTarget.style.boxShadow='none'; }}
+                        onMouseEnter={e => { e.currentTarget.style.transform='translateY(-5px)'; e.currentTarget.style.borderColor=isClaimed ? 'rgba(245,158,11,0.5)' : 'rgba(45,212,191,0.35)'; e.currentTarget.style.boxShadow='0 18px 40px rgba(0,0,0,0.3)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.borderColor=isClaimed ? 'rgba(245,158,11,0.3)' : '#1e293b'; e.currentTarget.style.boxShadow='none'; }}
                       >
+                        {isClaimed && (
+                          <div style={{
+                            position: 'absolute', top: '10px', right: '-28px',
+                            backgroundColor: '#f59e0b', color: 'black',
+                            padding: '4px 32px', fontSize: '0.6rem', fontWeight: '900',
+                            transform: 'rotate(45deg)', letterSpacing: '0.1em'
+                          }}>CLAIMED</div>
+                        )}
+                        {isPerfect && !isClaimed && (
+                          <div style={{
+                            position: 'absolute', top: '10px', right: '-28px',
+                            backgroundColor: '#2dd4bf', color: 'black',
+                            padding: '4px 32px', fontSize: '0.6rem', fontWeight: '900',
+                            transform: 'rotate(45deg)', letterSpacing: '0.1em'
+                          }}>PERFECT</div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div style={{ 
                             width:'52px', height:'52px', background:'rgba(255,255,255,0.04)', 
