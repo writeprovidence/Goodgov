@@ -1,0 +1,258 @@
+/* ─── PP MORI LOCAL FONT FACES ─────────────────────── */
+@font-face {
+  font-family: 'PP Mori';
+  src: url('/fonts/PPMori-Extralight.otf') format('opentype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'PP Mori';
+  src: url('/fonts/PPMori-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'PP Mori';
+  src: url('/fonts/PPMori-RegularItalic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'PP Mori';
+  src: url('/fonts/PPMori-SemiBold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── CSS DESIGN TOKENS ─────────────────────────────── */
+:root {
+  --primary:        #2dd4bf;
+  --primary-dim:    rgba(45, 212, 191, 0.15);
+  --primary-hover:  #14b8a6;
+  --secondary:      #a855f7;
+  --accent:         #3b82f6;
+  --warn:           #f59e0b;
+
+  --bg-dark:        #0a0f1e;
+  --bg-nav:         rgba(10, 15, 30, 0.85);
+  --bg-card:        #111827;
+  --bg-card-hover:  #1a2539;
+  --bg-light:       #f8fafc;
+  --bg-mid:         #f1f5f9;
+
+  --text-main:      #f1f5f9;
+  --text-dark:      #0f172a;
+  --text-muted:     #94a3b8;
+  --text-body:      #64748b;
+
+  --glass:          rgba(255, 255, 255, 0.04);
+  --glass-hover:    rgba(255, 255, 255, 0.08);
+  --glass-border:   rgba(255, 255, 255, 0.08);
+
+  --radius-sm:   10px;
+  --radius-md:   16px;
+  --radius-lg:   24px;
+  --radius-xl:   32px;
+
+  --shadow-glow:   0 0 40px rgba(45, 212, 191, 0.18);
+  --shadow-card:   0 4px 24px rgba(0, 0, 0, 0.12);
+  --transition:    0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── RESET ─────────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'PP Mori', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  line-height: 1.65;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img { display: block; max-width: 100%; }
+a  { text-decoration: none; color: inherit; transition: var(--transition); }
+
+h1, h2, h3, h4, h5 {
+  font-family: 'PP Mori', sans-serif;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* ─── LAYOUT ─────────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 5%;
+}
+
+/* ─── BUTTONS ─────────────────────────────────────────── */
+button, .btn {
+  cursor: pointer;
+  border: none;
+  font-family: 'PP Mori', sans-serif;
+  font-weight: 600;
+  transition: var(--transition);
+  outline: none;
+  text-transform: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--bg-dark);
+  padding: 0.85rem 2.5rem;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 800;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(45, 212, 191, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.85rem 2.5rem;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.btn-outline:hover {
+  background: var(--glass-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ─── CARDS ─────────────────────────────────────────── */
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+}
+
+/* ─── TYPOGRAPHY ─────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-14px); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(45, 212, 191, 0.2); }
+  50%       { box-shadow: 0 0 50px rgba(45, 212, 191, 0.5); }
+}
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
+}
+@keyframes spin-ring {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUpDesktop {
+  from { opacity: 0; transform: translate(-50%, 80px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes slideUpMobile {
+  from { opacity: 0; transform: translateY(80px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popUpCenter {
+  from { opacity: 0; transform: translate(-50%, -45%) scale(0.95); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes blink-correct {
+  0% { transform: scale(1); box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); background-color: rgba(16, 185, 129, 0.1); }
+  100% { transform: scale(1.02); box-shadow: 0 0 40px rgba(16, 185, 129, 0.9); background-color: rgba(16, 185, 129, 0.3); border-color: #10b981; }
+}
+
+.float-anim     { animation: float 4s ease-in-out infinite; }
+.pulse-glow     { animation: pulse-glow 2.5s ease-in-out infinite; }
+.fade-in-up     { animation: fadeInUp 0.7s ease-out both; }
+
+/* ─── SCROLLBAR ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ─── MOBILE RESPONSIVENESS ──────────────────────────── */
+@media (max-width: 1024px) {
+  .container { padding: 0 6%; }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --radius-xl: 24px;
+    --radius-lg: 16px;
+  }
+
+  body { font-size: 16px; }
+
+  .container { padding: 0 20px; }
+
+  .mobile-hide { display: none !important; }
+  .mobile-show { display: block !important; }
+
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  .section-padding {
+    padding: 60px 0 !important;
+  }
+
+  .mobile-center {
+    text-align: center !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+.responsive-grid {
+  display: grid;
+  transition: all 0.3s ease;
+}
+
+.mobile-show { display: none; }
+
