@@ -140,6 +140,29 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     localStorage.setItem(storageKey, JSON.stringify(value));
   };
 
+  // Helper functions to save data to Supabase
+  const savePerfectQuizToSupabase = async (stageName, quizTitle) => {
+    if (!supabase || !walletAddress) return;
+    try {
+      await supabase.from('perfect_quizzes').insert([
+        { wallet_address: walletAddress, stage_name: stageName, quiz_title: quizTitle }
+      ]);
+    } catch (err) {
+      console.error('Error saving perfect quiz to Supabase:', err);
+    }
+  };
+
+  const saveCompletedStageToSupabase = async (stageName) => {
+    if (!supabase || !walletAddress) return;
+    try {
+      await supabase.from('completed_stages').insert([
+        { wallet_address: walletAddress, stage_name: stageName }
+      ]);
+    } catch (err) {
+      console.error('Error saving completed stage to Supabase:', err);
+    }
+  };
+
   const [claimedRewardsHistory, setClaimedRewardsHistory] = useState(() => {
     return getWalletStorageItem('claim_history', {}); // { quizId: { amount: 10, timestamp: ms } }
   });
@@ -226,6 +249,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       // Record the claim
       const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now() } };
       setClaimedRewardsHistory(newHistory);
+      setWalletStorageItem('claim_history', newHistory);
       setClaimStatus({ success: true });
       setShowClaimSuccessModal(true);
       
@@ -398,6 +422,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             };
           });
           setClaimedRewardsHistory(history);
+          setWalletStorageItem('claim_history', history);
         }
 
         // Fetch completed stages from Supabase
@@ -419,6 +444,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             }
           });
           setCompletedStages(completed);
+          setWalletStorageItem('completed_stages', completed);
         }
 
         // Fetch perfect quizzes from Supabase
@@ -440,6 +466,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             }
           });
           setPerfectQuizzes(perfect);
+          setWalletStorageItem('perfect_quizzes', perfect);
         }
 
       } catch (err) {
@@ -722,6 +749,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       // Record the claim
       const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now() } };
       setClaimedRewardsHistory(newHistory);
+      setWalletStorageItem('claim_history', newHistory);
       setClaimStatus({ success: true });
       setShowClaimSuccessModal(true);
       
@@ -850,10 +878,22 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             const updatedQuizzes = [...currentStageQuizzes, activeQuiz.title];
             const updated = { ...prev, [activeQuizStage]: updatedQuizzes };
             
+            // Save to localStorage
+            setWalletStorageItem('perfect_quizzes', updated);
+            
+            // Save to Supabase
+            savePerfectQuizToSupabase(activeQuizStage, activeQuiz.title);
+            
             // Check if stage is now complete
             const requiredCount = stageQuizCounts[activeQuizStage] || 1;
             if (updatedQuizzes.length >= requiredCount) {
-              setCompletedStages(cs => ({ ...cs, [activeQuizStage]: true }));
+              setCompletedStages(cs => {
+                const updatedStages = { ...cs, [activeQuizStage]: true };
+                // Save completed stage to localStorage and Supabase
+                setWalletStorageItem('completed_stages', updatedStages);
+                saveCompletedStageToSupabase(activeQuizStage);
+                return updatedStages;
+              });
             }
             return updated;
           }
