@@ -1,170 +1,100 @@
-# GoodGov: Learn Web3 & Earn Rewards
+# GoodGov: Learn Web3 & Earn Social Impact Rewards
 
-GoodGov is an interactive, gamified Web3 education platform where users learn about DAOs, blockchain governance, and ecosystem projects while earning GoodDollar (G$) tokens!
+GoodGov is a premium, gamified Web3 education platform built on the **Celo Network**. It empowers users to master DAO governance, blockchain security, and ecosystem fundamentals while earning **GoodDollar (G$)** tokens for achieving mastery.
 
-## 🎯 Project Overview
+## 🚀 Vision
+The mission of GoodGov is to transform "dry" technical documentation into an engaging, high-stakes learning adventure. By combining game design principles with social impact finance, we create a fun entry point for the next generation of decentralized citizens.
 
-GoodGov makes learning about decentralized governance fun and rewarding. Users can:
-- Take quizzes on DAO knowledge, Web3 basics, and ecosystem-specific topics
-- Complete "Mastery Challenges" for higher rewards
-- Track their progress and claimed rewards across devices
-- Connect their crypto wallet via Privy
-- Learn from a comprehensive glossary and governance forum resources
+---
 
-## 🛠️ Tech Stack
+## ✨ Key Features
 
-### Frontend
-- **React 19**: Modern, fast UI library
-- **Vite**: Lightning-fast dev server and build tool
-- **Framer Motion**: Smooth animations and transitions
-- **Lucide React**: Beautiful, consistent icons
-- **Privy**: Seamless wallet connection and authentication
+### 🕹️ Gamified Learning Experience
+- **Interactive Missions**: Take quizzes across multiple categories (DAO Architecture, Web3 Basics, Ecosystems).
+- **Mastery Challenges**: 20-question gauntlets requiring a perfect score to earn rewards.
+- **Pro UI/UX**: High-impact visuals, animated score rings, XP progress bars, and particle chimes for success.
+- **Dynamic Feedback**: Real-time correct/incorrect indicators with deep-dive technical explanations.
 
-### Backend (Vercel Serverless Functions)
-- **Express**: Lightweight server framework (for local dev)
-- **Vercel Functions**: Auto-scaling, serverless endpoints
+### 🛡️ Secure Reward Ecosystem
+- **Proof-of-Solve Verification**: Unlike simple frontend apps, GoodGov uses server-side verification. Your answers are cross-checked against the master data on the backend before any reward signature is issued.
+- **Cryptographic Signatures**: The server issues a secure ECDSA signature for eligible claims, which is then used to interact with the on-chain smart contract.
+- **Zero Abuse Policy**: Each user can claim a specific mission's reward exactly once. One-time claiming is strictly enforced both on-chain and via database checks.
 
-### Blockchain & Web3
-- **Celo Network**: EVM-compatible chain for fast, low-cost transactions
-- **GoodDollar (G$)**: Social impact token earned as rewards
-- **ethers.js**: Web3 library for interacting with the blockchain
+### 📱 Mobile-First Design
+- **Fully Responsive**: Optimized for everything from high-res desktops to the narrow viewport of an iPhone X.
+- **Tactical Sound Design**: High-fidelity sound effects and background music that work reliably on mobile browsers through specialized AudioContext handling.
 
-### Database
-- **Supabase**: Open-source Firebase alternative for persistent, cross-device user data storage
+### 🔄 Progressive Synchronization
+- **Wallet-Native Progress**: Your achievements stay with your wallet. Use **Supabase** for secure, cross-device sync of your perfect runs and claim history.
+- **Deferred Claims**: Finish a quiz now, claim later. Your answers are securely persisted so you can retrieve your reward when gas is low or when you've connected your primary wallet.
 
-## 📁 Key Features
+---
 
-### 1. Quiz System
-- Multiple quiz categories: DAO Knowledge, Web3 Basics, Ecosystem-Specific
-- Mastery Challenges (20 questions for perfect score rewards)
-- Lifelines and timed questions
-- Smooth loading and completion screens
+## 🛠️ Technology Stack
 
-### 2. Rewards System
-- 10 G$ reward for perfect Mastery Challenge scores
-- 90-day cooldown per quiz to prevent abuse
-- On-chain reward claiming via smart contract or direct transfer
-- Claim history tracking with transaction hashes
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 19, Vite, Framer Motion, Lucide icons |
+| **Authentication** | Privy SDK (Social & Web3 Wallets) |
+| **Blockchain** | Celo Network (Mainnet/Alfajores) |
+| **Backend** | Vercel Serverless Functions, Node.js (ESM), Express |
+| **Database** | Supabase (PostgreSQL) |
+| **Smart Contracts** | Solidity (QuizRewards.sol), ethers.js v5 |
 
-### 3. Persistent User Data
-- Wallet-specific progress tracking
-- Cross-device sync via Supabase
-- Completed stages, perfect quizzes, and claim history saved
+---
 
-### 4. Learning Resources
-- Comprehensive Web3 glossary with categorized terms
-- Curated governance forum links
-- Trusted ecosystem partners
-
-## 🚀 Getting Started
+## 🏁 Getting Started
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- A Celo wallet (for testing rewards)
-- Supabase account (for persistent data)
-- Privy account (for wallet auth)
+- **Node.js**: v20 or higher (Optimized for v24)
+- **Supabase Account**: For persistent data and verification logs.
+- **Celo Wallet**: Private key for a treasury wallet (to sign rewards).
 
-### Local Development
+### Installation
 
-1. **Clone the repository**
+1. **Clone & Install**
    ```bash
    git clone https://github.com/writeprovidence/GoodGov.git
-   cd GoodGov
-   ```
-
-2. **Install dependencies**
-   ```bash
+   cd goodgov
    npm install
    ```
 
-3. **Set up environment variables**
-   Create a `.env` file in the root directory and copy the template from `.env.example`:
+2. **Environment Configuration**
+   Create a `.env` file with the following:
    ```env
-   # Frontend Variables
-   VITE_PRIVY_APP_ID=your-privy-app-id
-   VITE_SUPABASE_URL=your-supabase-project-url
-   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+   # Frontend
+   VITE_PRIVY_APP_ID=your_id
+   VITE_SUPABASE_URL=your_url
+   VITE_SUPABASE_ANON_KEY=your_key
 
-   # Backend Variables
-   TREASURY_PRIVATE_KEY=your-celo-treasury-wallet-private-key
-   SUPABASE_URL=your-supabase-project-url
-   SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+   # Backend (Server-side)
+   TREASURY_PRIVATE_KEY=your_signing_key
+   SUPABASE_URL=your_url
+   SUPABASE_SERVICE_ROLE_KEY=your_service_key
    ```
 
-4. **Set up Supabase**
-   - Follow the instructions in `SUPABASE_SETUP.md` to create your Supabase project and database tables
-
-5. **Start the dev server**
+3. **Running Locally**
+   Start the hybrid Vite + Express server:
    ```bash
    npm run dev
    ```
-   The app will be available at `http://localhost:5173`
+   *The server runs by default on `http://localhost:5173`.*
 
-## 🌐 Deployment
+---
 
-GoodGov is fully optimized for deployment on Vercel!
+## 🏗️ Architecture
 
-### Deploy to Vercel
-1. Push your code to GitHub
-2. Go to [Vercel](https://vercel.com) and import your repo
-3. Add all your environment variables in Vercel Project Settings
-4. Click "Deploy"! 🚀
+- **`api/sign-reward.js`**: The brains of the verification system. It imports raw quiz data, verifies user-submitted answers, checks for duplicate claims in Supabase, and signs the reward message if eligible.
+- **`src/components/Dashboard.jsx`**: The command center. Manages game state, answer tracking, and the "deferred claim" logic.
+- **`src/utils/sounds.js`**: Handles synthesized sound effects and ensures AudioContext is properly resumed on mobile devices.
+- **`contracts/QuizRewards.sol`**: A transparent reward contract on Celo that verifies server signatures and dispenses G$.
 
-## 📊 Project Structure
+---
 
-```
-goodgov/
-├── api/                      # Vercel serverless functions
-│   ├── claim-reward.js       # Endpoint for claiming rewards
-│   └── sign-reward.js        # Endpoint for signing reward messages
-├── contracts/                # Smart contract files
-│   ├── contracts/
-│   │   └── QuizRewards.sol   # Quiz rewards smart contract
-│   └── scripts/
-│       └── deploy.js         # Contract deployment script
-├── public/                   # Static assets
-│   ├── assets/
-│   ├── fonts/
-│   ├── images/
-│   └── logo/
-├── src/                      # Source code
-│   ├── assets/
-│   ├── components/           # React components
-│   │   ├── Dashboard.jsx     # Main app component
-│   │   ├── LoadingScreen.jsx # Loading screen
-│   │   ├── QuizElements.jsx  # Quiz UI components
-│   │   └── ...
-│   ├── data/                 # Static data
-│   │   ├── glossary.js       # Glossary terms
-│   │   └── quizzes.js        # Quiz questions
-│   ├── App.jsx
-│   └── main.jsx
-├── .env.example              # Example env vars
-├── SUPABASE_SETUP.md         # Supabase setup guide
-├── package.json
-├── vercel.json               # Vercel configuration
-└── vite.config.js
-```
+## 🌍 Social Impact
+GoodGov leverages the **GoodDollar (G$)** protocol. Every reward earned is a piece of a universal basic income ecosystem, providing real-world value while you build Digital Capital.
 
-## 🎨 Design Highlights
+---
 
-- Modern, clean dark theme
-- Professional UI/UX with smooth animations
-- Responsive design for all screen sizes
-- Accessible and user-friendly interface
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-## 📝 License
-
-This project is open source and available under the MIT License.
-
-## 🙏 Acknowledgments
-
-- GoodDollar for the social impact token
-- Privy for wallet authentication
-- Vercel for seamless deployment
-- Supabase for easy database management
+## 📄 License
+MIT © 2024 GoodGov Team
