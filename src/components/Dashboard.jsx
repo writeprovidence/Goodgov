@@ -2189,21 +2189,21 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
           {/* Decorative Background Elements */}
-          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
           
           <div style={{ flex: 1, zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #3b82f6, transparent)' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Intelligence Archives</span>
+              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #2dd4bf, transparent)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Intelligence Archives</span>
             </div>
-            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Intel <span style={{ color: '#3b82f6' }}>Glossary</span></h2>
+            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Intel <span style={{ color: '#2dd4bf' }}>Glossary</span></h2>
             <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
               Explore Web3 terminology made simple. Discover clear definitions that make the decentralized ecosystem easier to understand.
             </p>
           </div>
           {!isMobile && (
             <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative', minHeight: '220px', alignItems: 'center' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
               <img 
                 src="/glossary.png" 
                 alt="Intel Glossary" 
@@ -2289,21 +2289,21 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
           {/* Decorative Background Elements */}
-          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
+          <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%)', zIndex: 0 }} />
           
           <div style={{ flex: 1, zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #a855f7, transparent)' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Governance Hub</span>
+              <div style={{ width: '40px', height: '1.5px', background: 'linear-gradient(90deg, #2dd4bf, transparent)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: '900', color: '#2dd4bf', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Governance Hub</span>
             </div>
-            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Governance <span style={{ color: '#a855f7' }}>Forums</span></h2>
+            <h2 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', color: 'white', marginBottom: '16px', fontFamily: "'PP Mori', sans-serif", letterSpacing: '-0.03em' }}>Governance <span style={{ color: '#2dd4bf' }}>Forums</span></h2>
             <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.7', maxWidth: '680px', marginBottom: '16px' }}>
               Explore active governance spaces across the Web3 ecosystem. Read proposals, cast votes, and shape protocol decisions.
             </p>
           </div>
           {!isMobile && (
             <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'center', position: 'relative', minHeight: '220px', alignItems: 'center' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)', filter: 'blur(30px)' }} />
               <img 
                 src="/governace.png" 
                 alt="Governance Forums" 
