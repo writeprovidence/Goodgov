@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
+import { DAO_QUIZZES, WEB3_ESSENTIALS_QUIZZES, ECOSYSTEM_QUIZZES } from '../src/data/quizzes';
 
 // Provider and Supabase initialized inside handler to ensure .env is loaded
 
@@ -9,9 +10,44 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userAddress, quizId } = req.body;
+    const { userAddress, quizId, answers } = req.body;
     if (!userAddress || !quizId) {
       return res.status(400).json({ error: "Missing parameters" });
+    }
+
+    // VERIFICATION: Check if answers are provided and correct
+    if (!answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: "Answers required for proof-of-work verification." });
+    }
+
+    const allQuizzes = [
+      ...DAO_QUIZZES,
+      ...WEB3_ESSENTIALS_QUIZZES,
+      ...Object.values(ECOSYSTEM_QUIZZES).flat()
+    ];
+    
+    const quiz = allQuizzes.find(q => q.title === quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: "Quiz definition not found on server." });
+    }
+
+    // Verify each answer against the server-side quiz data
+    let correctCount = 0;
+    for (const ans of answers) {
+      const qData = quiz.questions.find(q => q.question === ans.question);
+      if (qData) {
+        const correctText = qData.options[qData.correct];
+        if (ans.selectedAnswer === correctText) {
+          correctCount++;
+        }
+      }
+    }
+
+    // REQUIREMENT: Must be a perfect run of 20 questions to get the reward
+    if (correctCount < 20) {
+      return res.status(400).json({ 
+        error: `Verification failed. Only ${correctCount}/20 correct. A perfect score of 20/20 is required for reward signature.` 
+      });
     }
 
     // SECURITY FIX: Hardcode the reward amount on the server

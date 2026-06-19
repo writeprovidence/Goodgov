@@ -57,7 +57,7 @@ const Hero = ({ onStart }) => {
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
-      paddingTop: '90px',
+      paddingTop: isMobile ? '110px' : '90px',
       position: 'relative',
       overflow: 'hidden',
     }}>

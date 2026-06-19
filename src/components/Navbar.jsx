@@ -9,6 +9,16 @@ const Navbar = ({ onStart }) => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isSmallMobile = windowWidth < 480;
+
   return (
     <nav style={{
       position: 'fixed',
@@ -19,7 +29,7 @@ const Navbar = ({ onStart }) => {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '1.2rem 5%',
+      padding: isSmallMobile ? '0.8rem 4%' : '1.2rem 5%',
       background: scrolled ? 'rgba(10, 15, 30, 0.95)' : 'transparent',
       backdropFilter: scrolled ? 'blur(20px)' : 'none',
       borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : 'none',
@@ -30,19 +40,26 @@ const Navbar = ({ onStart }) => {
         <img
           src="/logo/goodgov_logo.png"
           alt="GoodGov"
-          style={{ height: '60px', width: 'auto', objectFit: 'contain' }}
+          style={{ height: isSmallMobile ? '40px' : '60px', width: 'auto', objectFit: 'contain' }}
         />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button 
           id="nav-cta" 
           className="btn-primary" 
           onClick={() => onStart()}
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+          style={{ 
+            cursor: 'pointer', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: isSmallMobile ? '0.6rem 1.2rem' : '0.85rem 2.5rem',
+            fontSize: isSmallMobile ? '0.8rem' : '1rem'
+          }}
         >
           Play Now
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg width={isSmallMobile ? "16" : "20"} height={isSmallMobile ? "16" : "20"} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
       </div>
     </nav>

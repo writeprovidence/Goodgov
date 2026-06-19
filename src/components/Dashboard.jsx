@@ -98,6 +98,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [isAnswered, setIsAnswered] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [score, setScore] = useState(0);
+  const [userAnswers, setUserAnswers] = useState([]);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [shuffledQuestions, setShuffledQuestions] = useState([]);
   const [lifelines, setLifelines] = useState({ fiftyFifty: true, lifeline: true });
@@ -120,19 +121,23 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     return localStorage.getItem('quiz_rewards_contract') || QUIZ_REWARDS_CONTRACT;
   });
   const [pendingClaims, setPendingClaims] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('goodgov_pending_claims') || '[]'); } catch { return []; }
+    try { 
+      const saved = JSON.parse(localStorage.getItem('goodgov_pending_claims') || '[]');
+      // Migration: convert old string array to object array if needed
+      return saved.map(item => typeof item === 'string' ? { quizId: item, answers: [] } : item);
+    } catch { return []; }
   });
-  const savePendingClaim = (quizId) => {
+  const savePendingClaim = (quizId, answers = []) => {
     setPendingClaims(prev => {
-      if (prev.includes(quizId)) return prev;
-      const next = [...prev, quizId];
+      if (prev.find(p => p.quizId === quizId)) return prev;
+      const next = [...prev, { quizId, answers }];
       localStorage.setItem('goodgov_pending_claims', JSON.stringify(next));
       return next;
     });
   };
   const removePendingClaim = (quizId) => {
     setPendingClaims(prev => {
-      const next = prev.filter(id => id !== quizId);
+      const next = prev.filter(p => p.quizId !== quizId);
       localStorage.setItem('goodgov_pending_claims', JSON.stringify(next));
       return next;
     });
@@ -144,6 +149,11 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   
   const playGameSound = (type) => {
     if (soundEnabled) {
+      // On mobile, AudioContext needs to be resumed within a user gesture
+      const ctx = window._audioCtx || (window.AudioContext && new (window.AudioContext || window.webkitAudioContext)());
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(e => console.log('AudioContext resume failed:', e));
+      }
       playSound(type);
     }
   };
@@ -211,10 +221,24 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     try {
       if (QUIZ_REWARDS_ADDRESS) {
+        // If answers are not in state (e.g. claiming from profile), check pendingClaims
+        let answersToVerify = userAnswers;
+        if (answersToVerify.length === 0) {
+          const pending = pendingClaims.find(p => p.quizId === quizId);
+          if (pending && pending.answers) {
+            answersToVerify = pending.answers;
+          }
+        }
+
         const sigRes = await fetch('/api/sign-reward', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
+          body: JSON.stringify({ 
+            userAddress: walletAddress, 
+            quizId, 
+            amount: 10,
+            answers: answersToVerify
+          })
         });
         const sigData = await sigRes.json();
         if (!sigRes.ok) throw new Error(sigData.error || 'Failed to get signature');
@@ -350,6 +374,27 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const startQuiz = useCallback((quiz, stage) => {
     if (!quiz.questions || quiz.questions.length === 0) return;
     playGameSound('click');
+
+    // Mobile Audio Unlock: Initialize and play/pause music objects during this user gesture
+    if (backgroundMusicEnabled) {
+      if (!loadingAudioRef.current) {
+        loadingAudioRef.current = new Audio('/audio/loading.mp3');
+        loadingAudioRef.current.volume = 0.5;
+      }
+      if (!backgroundAudioRef.current) {
+        backgroundAudioRef.current = new Audio('/audio/millionaire.mp3');
+        backgroundAudioRef.current.loop = true;
+        backgroundAudioRef.current.volume = 0.3;
+      }
+      
+      // Attempt to play immediately (this unlocks it for the subsequent useEffect calls)
+      loadingAudioRef.current.play().catch(() => {});
+      backgroundAudioRef.current.play().then(() => {
+        // Immediately pause background music because we are in the 'loading' state first
+        backgroundAudioRef.current.pause();
+      }).catch(() => {});
+    }
+
     setLaunchingQuiz({ quiz, stage });
     setIsLaunching(true);
 
@@ -385,6 +430,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       popupTimeoutRef.current = null;
     }
     setScore(0);
+    setUserAnswers([]);
     setQuizCompleted(false);
     setCurrentView('quiz');
     setLifelines({ fiftyFifty: true, lifeline: true });
@@ -765,16 +811,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     }
 
     const quizId = activeQuiz?.title || 'Grand Master Quiz';
-    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
-    // 90-day cooldown check
+    // Check if already claimed
     const existingClaim = claimedRewardsHistory[quizId];
     if (existingClaim) {
-      const elapsed = Date.now() - existingClaim.timestamp;
-      if (elapsed < NINETY_DAYS_MS) {
-        setShowAlreadyClaimedModal(true);
-        return;
-      }
+      setShowAlreadyClaimedModal(true);
+      return;
     }
     
     setIsClaiming(true);
@@ -784,10 +826,23 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     try {
       if (QUIZ_REWARDS_ADDRESS) {
+        let answersToVerify = userAnswers;
+        if (answersToVerify.length === 0) {
+          const pending = pendingClaims.find(p => p.quizId === quizId);
+          if (pending && pending.answers) {
+            answersToVerify = pending.answers;
+          }
+        }
+
         const sigRes = await fetch('/api/sign-reward', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userAddress: walletAddress, quizId, amount: 10 })
+          body: JSON.stringify({ 
+            userAddress: walletAddress, 
+            quizId, 
+            amount: 10,
+            answers: answersToVerify
+          })
         });
         const sigData = await sigRes.json();
         if (!sigRes.ok) throw new Error(sigData.error || 'Failed to get signature');
@@ -946,7 +1001,15 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     playGameSound('select');
     setSelectedOption(index);
     setIsAnswered(true);
-    if (index === shuffledQuestions[currentQuestionIndex].correct) {
+    
+    // Record answer for backend verification
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+    setUserAnswers(prev => [...prev, {
+      question: currentQuestion.question,
+      selectedAnswer: currentQuestion.options[index]
+    }]);
+
+    if (index === currentQuestion.correct) {
       setScore(s => s + 1);
       playGameSound('success');
     } else {
@@ -1054,7 +1117,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       const rankColor = accuracyPct === 100 ? '#f59e0b' : accuracyPct >= 80 ? '#2dd4bf' : accuracyPct >= 60 ? '#818cf8' : '#94a3b8';
       const quizId = activeQuiz?.title || 'Mission';
       const isClaimed = !!claimedRewardsHistory[quizId];
-      const isPending = pendingClaims.includes(quizId);
+      const isPending = !!pendingClaims.find(p => p.quizId === quizId);
       const isEligible = score === 20 && shuffledQuestions.length === 20;
 
       // SVG ring dimensions
@@ -1365,7 +1428,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               {/* SKIP button */}
               {isEligible && !isClaimed && !isPending && (
                 <button
-                  onClick={() => savePendingClaim(quizId)}
+                  onClick={() => savePendingClaim(quizId, userAnswers)}
                   style={{
                     width: '100%', padding: '12px 20px',
                     borderRadius: '6px',
@@ -2325,7 +2388,8 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     });
 
     // Also include pending (skipped) claims not already in perfectQuizzes
-    pendingClaims.forEach(quizId => {
+    pendingClaims.forEach(claim => {
+      const { quizId } = claim;
       if (!claimedRewardsHistory[quizId] && !unclaimedRewards.find(r => r.quizTitle === quizId)) {
         unclaimedRewards.push({ quizTitle: quizId, stage: 'Pending', amount: 10 });
       }

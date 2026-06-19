@@ -1,6 +1,13 @@
-// Sound utility for GoodGov - James Brown-style funk effects
+let audioContext = null;
+
 export const playSound = (type) => {
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
   
   // Helper function to create a drum hit (kick/snare/hi-hat)
   const createDrumHit = (type) => {
