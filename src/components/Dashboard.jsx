@@ -24,6 +24,7 @@ import {
   Menu,
   X,
   Search,
+  CheckCircle,
 } from 'lucide-react';
 import { 
   DAO_QUIZZES as daoQuizzes, 
@@ -112,6 +113,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimStatus, setClaimStatus] = useState(null);
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
+  const [showAlreadyClaimedModal, setShowAlreadyClaimedModal] = useState(false);
   const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => {
     return localStorage.getItem('quiz_rewards_contract') || QUIZ_REWARDS_CONTRACT;
   });
@@ -172,7 +174,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     const alreadyClaimed = !!existingClaim;
 
     if (alreadyClaimed) {
-      setClaimStatus({ success: false, message: `You have already claimed this reward.` });
+      setShowAlreadyClaimedModal(true);
       return;
     }
 
@@ -255,10 +257,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       
     } catch (err) {
       console.error(err);
-      setClaimStatus({ 
-        success: false, 
-        message: err.message || "Failed to claim reward. Please try again later."
-      });
+      if (err.message && err.message.includes("Signature already issued")) {
+        setShowAlreadyClaimedModal(true);
+      } else {
+        setClaimStatus({ 
+          success: false, 
+          message: err.message || "Failed to claim reward. Please try again later."
+        });
+      }
     } finally {
       setIsClaiming(false);
     }
@@ -670,8 +676,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     if (existingClaim) {
       const elapsed = Date.now() - existingClaim.timestamp;
       if (elapsed < NINETY_DAYS_MS) {
-        const daysLeft = Math.ceil((NINETY_DAYS_MS - elapsed) / (24 * 60 * 60 * 1000));
-        setClaimStatus({ success: false, message: `You can claim this reward again in ${daysLeft} day(s). Each quiz allows 1 claim per 90 days.` });
+        setShowAlreadyClaimedModal(true);
         return;
       }
     }
@@ -755,10 +760,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       
     } catch (err) {
       console.error(err);
-      setClaimStatus({ 
-        success: false, 
-        message: err.message || "Failed to claim reward. Please try again later."
-      });
+      if (err.message && err.message.includes("Signature already issued")) {
+        setShowAlreadyClaimedModal(true);
+      } else {
+        setClaimStatus({ 
+          success: false, 
+          message: err.message || "Failed to claim reward. Please try again later."
+        });
+      }
     } finally {
       setIsClaiming(false);
     }
@@ -954,303 +963,193 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       }
 
       return (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: isMobile ? '24px 16px' : '40px', paddingTop: isMobile ? '60px' : '40px', overflowY: 'auto', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center' }}>
-          <div style={{ maxWidth: '700px', width: '100%' }}>
-            {/* Header Section */}
-            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <div style={{ 
-                width: '96px', 
-                height: '96px', 
-                borderRadius: '24px', 
-                background: isPerfectRun ? 'linear-gradient(135deg, rgba(45,212,191,0.2) 0%, rgba(45,212,191,0.05) 100%)' : 'linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.05) 100%)', 
-                border: `1.5px solid ${isPerfectRun ? 'rgba(45,212,191,0.3)' : 'rgba(239,68,68,0.3)'}`, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                fontSize: '3rem',
-                margin: '0 auto 24px',
-                boxShadow: isPerfectRun ? '0 20px 60px rgba(45,212,191,0.15)' : '0 20px 60px rgba(239,68,68,0.1)'
-              }}>
-                {isPerfectRun ? '🏆' : '📊'}
-              </div>
-              <h2 style={{ 
-                fontSize: '2.25rem', 
-                fontWeight: '800', 
-                marginBottom: '8px', 
-                letterSpacing: '-0.02em',
-                background: isPerfectRun ? 'linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%)' : 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>
-                {isPerfectRun ? 'Perfect Mastery!' : 'Quiz Complete'}
-              </h2>
-              <p style={{ color: '#64748b', fontSize: '1rem', margin: 0 }}>
-                {activeQuiz.title}
-              </p>
-            </div>
-
-            {/* Score Card */}
-            <div style={{ 
-              background: 'linear-gradient(180deg, #0f172a 0%, #0a0f1e 100%)', 
-              border: '1.5px solid #1e293b', 
-              borderRadius: '24px', 
-              padding: '32px', 
-              marginBottom: '24px',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.4)'
+        <div style={{ 
+          position: 'fixed', 
+          inset: 0, 
+          backgroundColor: '#050a15', 
+          color: 'white', 
+          zIndex: 1100, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          animation: 'fadeIn 0.4s ease-out'
+        }}>
+          <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center', padding: '24px' }}>
+            {/* Celebration Icon */}
+            <div style={{
+              width: '100px', height: '100px', borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)',
+              border: '1.5px solid rgba(45, 212, 191, 0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 32px',
+              position: 'relative'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Final Score</div>
-                  <div style={{ fontSize: '4rem', fontWeight: '900', lineHeight: 1, color: isPerfectRun ? '#2dd4bf' : '#94a3b8' }}>
-                    {score}/{shuffledQuestions.length}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Accuracy</div>
-                  <div style={{ fontSize: '2rem', fontWeight: '900', lineHeight: 1, color: isPerfectRun ? '#2dd4bf' : '#94a3b8' }}>
-                    {Math.round((score / shuffledQuestions.length) * 100)}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div style={{ marginBottom: '24px' }}>
-                <div style={{ height: '8px', backgroundColor: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ 
-                    width: `${(score / shuffledQuestions.length) * 100}%`, 
-                    height: '100%', 
-                    background: isPerfectRun ? 'linear-gradient(90deg, #2dd4bf 0%, #14b8a6 100%)' : 'linear-gradient(90deg, #64748b 0%, #475569 100%)',
-                    borderRadius: '4px',
-                    transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)'
-                  }} />
-                </div>
-              </div>
-
-              {/* Status Badge */}
-              <div style={{ 
-                padding: '14px 20px', 
-                borderRadius: '14px', 
-                backgroundColor: isPerfectRun ? 'rgba(45, 212, 191, 0.08)' : 'rgba(100, 116, 139, 0.1)', 
-                border: `1.5px solid ${isPerfectRun ? 'rgba(45, 212, 191, 0.25)' : 'rgba(100, 116, 139, 0.25)'}`, 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px'
-              }}>
-                <div style={{ 
-                  width: '10px', 
-                  height: '10px', 
-                  borderRadius: '50%', 
-                  backgroundColor: isPerfectRun ? '#2dd4bf' : '#64748b', 
-                  boxShadow: `0 0 12px ${isPerfectRun ? 'rgba(45,212,191,0.4)' : 'rgba(100,116,139,0.4)'}` 
-                }} />
-                <span style={{ fontSize: '0.9rem', fontWeight: '700', color: isPerfectRun ? '#2dd4bf' : '#94a3b8' }}>
-                  {isPerfectRun ? '✓ Stage cleared with 100% accuracy!' : 'Mission completed — great effort!'}
-                </span>
+              <div style={{ fontSize: '3rem', animation: 'float 3s ease-in-out infinite' }}>
+                {score === shuffledQuestions.length ? '🏆' : '🎉'}
               </div>
             </div>
 
-            {/* Reward Section (if applicable) */}
-            {isPerfectRun && shuffledQuestions.length === 20 && (() => {
-              const quizId = activeQuiz?.title || 'Grand Master Quiz';
-              const existingClaim = claimedRewardsHistory[quizId];
-              const alreadyClaimed = !!existingClaim;
-              return (
-                <div style={{ 
-                  background: alreadyClaimed
-                    ? 'linear-gradient(180deg, rgba(100,116,139,0.08) 0%, rgba(100,116,139,0.03) 100%)'
-                    : 'linear-gradient(180deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)', 
-                  border: `1.5px solid ${alreadyClaimed ? 'rgba(100,116,139,0.3)' : 'rgba(45,212,191,0.3)'}`, 
-                  borderRadius: '24px', 
-                  padding: '28px', 
-                  marginBottom: '20px',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}>
-                  {/* Shimmer effect for unclaimed */}
-                  {!alreadyClaimed && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 40%, rgba(45,212,191,0.05) 50%, transparent 60%)', animation: 'shimmer 3s infinite', pointerEvents: 'none' }} />
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-                    <div style={{ 
-                      width: '52px', height: '52px', borderRadius: '16px',
-                      background: alreadyClaimed ? 'rgba(100,116,139,0.15)' : 'rgba(45,212,191,0.15)',
-                      border: `1px solid ${alreadyClaimed ? 'rgba(100,116,139,0.3)' : 'rgba(45,212,191,0.3)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0
-                    }}>
-                      {alreadyClaimed ? '✅' : '🏅'}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '900', color: alreadyClaimed ? '#94a3b8' : '#2dd4bf', fontSize: '1.05rem', marginBottom: '3px' }}>
-                        {alreadyClaimed ? 'Reward Already Claimed' : '🎉 Reward Unlocked — 10 G$'}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                        {alreadyClaimed 
-                          ? 'You have already claimed this reward' 
-                          : 'You earned 10 GoodDollar for perfect mastery'}
-                      </div>
-                    </div>
-                  </div>
+            <h2 style={{ 
+              fontSize: '2.5rem', 
+              fontWeight: '900', 
+              color: 'white', 
+              marginBottom: '16px',
+              fontFamily: "'PP Mori', sans-serif",
+              letterSpacing: '-0.02em'
+            }}>
+              All Done!
+            </h2>
 
-                  {alreadyClaimed ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ padding: '16px 20px', borderRadius: '14px', background: 'rgba(100,116,139,0.12)', border: '1.5px solid rgba(100,116,139,0.3)', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                        <div style={{ fontSize: '1.5rem', flexShrink: 0, marginTop: '-2px' }}>✅</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.9rem', color: '#e2e8f0', fontWeight: '700', marginBottom: '4px' }}>Reward Already Claimed!</div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: '1.5' }}>You've already collected your 10 G$ reward for this quiz. Each quiz can only be claimed once!</div>
-                        </div>
-                      </div>
-                      
+            <p style={{ 
+              color: '#94a3b8', 
+              fontSize: '1.05rem', 
+              lineHeight: '1.6', 
+              marginBottom: '40px',
+              fontWeight: '500'
+            }}>
+              {score === shuffledQuestions.length 
+                ? "Perfect mastery achieved! You've successfully secured all mission data."
+                : "Great job mastering this quiz! Ready for the next challenge?"}
+            </p>
 
-                      {getNextQuiz() && (
-                        <button 
-                          onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
-                          style={{ 
-                            width: '100%', 
-                            padding: '16px 24px', 
-                            borderRadius: '14px', 
-                            fontWeight: '800', 
-                            fontSize: '0.95rem', 
-                            background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                            color: '#000', 
-                            border: 'none', 
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 32px rgba(45,212,191,0.3)',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.5)';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.3)';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                          }}
-                        >
-                          🎮 Try Next Quiz
-                        </button>
-                      )}
-                      
-
-                      <button 
-                        onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
-                        style={{ 
-                          background: 'transparent', 
-                          border: '1.5px solid #1e293b', 
-                          color: '#94a3b8', 
-                          width: '100%', 
-                          padding: '14px 20px', 
-                          borderRadius: '12px', 
-                          fontWeight: '700', 
-                          cursor: 'pointer',
-                          fontSize: '0.9rem',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#334155';
-                          e.currentTarget.style.color = '#e2e8f0';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '#1e293b';
-                          e.currentTarget.style.color = '#94a3b8';
-                        }}
-                      >
-                        Browse All Quizzes
-                      </button>
-                    </div>
-                  ) : claimStatus && !claimStatus.success ? (
-                    <div style={{ padding: '14px 18px', borderRadius: '14px', background: 'rgba(239,68,68,0.1)', border: '1.5px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '0.88rem', fontWeight: '600' }}>
-                      ⚠️ {claimStatus.message}
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => handleClaimReward(quizId)}
-                      disabled={isClaiming}
-                      style={{ 
-                        width: '100%', 
-                        padding: '18px 24px', 
-                        borderRadius: '16px', 
-                        background: isClaiming ? '#1e293b' : 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                        color: isClaiming ? '#64748b' : '#000', 
-                        fontWeight: '900', 
-                        border: 'none',
-                        cursor: isClaiming ? 'wait' : 'pointer', 
-                        fontSize: '1rem',
-                        letterSpacing: '0.02em',
-                        boxShadow: isClaiming ? 'none' : '0 8px 32px rgba(45,212,191,0.3)',
-                        transition: 'all 0.2s ease',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
-                      }}
-                      onMouseEnter={(e) => { if (!isClaiming) { e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.5)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}}
-                      onMouseLeave={(e) => { if (!isClaiming) { e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}}
-                    >
-                      {isClaiming ? (
-                        <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #475569', borderTopColor: '#2dd4bf', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Processing...</>
-                      ) : (
-                        <>🏆 Claim 10 G$ Reward</>
-                      )}
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {(() => {
+                const quizId = activeQuiz?.title || 'Mission';
+                const isClaimed = !!claimedRewardsHistory[quizId];
+                const isEligible = score === 20 && shuffledQuestions.length === 20;
+                
+                if (isEligible) {
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button 
+                        onClick={() => {
+                          if (isClaimed) return;
+                          if (!authenticated) {
+                            login();
+                          } else {
+                            handleClaimReward(quizId);
+                          }
+                        }}
+                        disabled={isClaiming || isClaimed}
+                        style={{ 
+                          width: '100%', 
+                          padding: '18px 24px', 
+                          borderRadius: '100px', 
+                          background: isClaimed 
+                            ? 'rgba(45, 212, 191, 0.1)' 
+                            : 'linear-gradient(135deg, #f59e0b, #d97706)', 
+                          color: isClaimed ? '#2dd4bf' : 'black', 
+                          fontWeight: '900', 
+                          border: isClaimed ? '1.5px solid rgba(45, 212, 191, 0.3)' : 'none',
+                          cursor: (isClaiming || isClaimed) ? 'default' : 'pointer', 
+                          fontSize: '1rem',
+                          boxShadow: isClaimed ? 'none' : '0 8px 32px rgba(245, 158, 11, 0.3)',
+                          transition: 'all 0.2s ease',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}
+                        onMouseEnter={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(245, 158, 11, 0.45)'; }}}
+                        onMouseLeave={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(245, 158, 11, 0.3)'; }}}
+                      >
+                        {isClaiming ? (
+                          <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #000', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> PROCESSING...</>
+                        ) : isClaimed ? (
+                          'CLAIMED'
+                        ) : (
+                          authenticated ? 'CLAIM 10 G$ REWARD' : 'LOGIN TO CLAIM'
+                        )}
+                      </button>
+                      
+                      {claimStatus && !claimStatus.success && (
+                        <div style={{ 
+                          padding: '12px', 
+                          borderRadius: '12px', 
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          color: '#ef4444',
+                          fontSize: '0.85rem',
+                          fontWeight: '600'
+                        }}>
+                          ⚠️ {claimStatus.message}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Start Next Mission Button */}
               {getNextQuiz() && (
                 <button 
                   onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
                   style={{ 
                     width: '100%', 
                     padding: '18px 24px', 
-                    borderRadius: '14px', 
+                    borderRadius: '100px', 
                     fontWeight: '800', 
                     fontSize: '1rem', 
-                    background: '#0f172a', 
-                    color: 'white', 
-                    border: '1.5px solid #1e293b', 
+                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                    color: '#000', 
+                    border: 'none', 
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
+                    transition: 'all 0.2s ease',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#2dd4bf';
-                    e.currentTarget.style.backgroundColor = 'rgba(45,212,191,0.05)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.35)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#1e293b';
-                    e.currentTarget.style.backgroundColor = '#0f172a';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.25)';
                   }}
                 >
-                  Continue to Next Mission →
+                  START NEXT MISSION
+                </button>
+              )}
+              
+              {!getNextQuiz() && (
+                <button 
+                  onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
+                  style={{ 
+                    width: '100%', 
+                    padding: '18px 24px', 
+                    borderRadius: '100px', 
+                    fontWeight: '800', 
+                    fontSize: '1rem', 
+                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                    color: '#000', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
+                    transition: 'all 0.2s ease',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}
+                >
+                  RETURN TO SELECTION
                 </button>
               )}
 
-              <button 
-                onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
-                style={{ 
-                  background: 'transparent', 
-                  border: '1.5px solid #1e293b', 
-                  color: '#64748b', 
-                  width: '100%', 
-                  padding: '16px 24px', 
-                  borderRadius: '14px', 
-                  fontWeight: '700', 
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#334155';
-                  e.currentTarget.style.color = '#94a3b8';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#1e293b';
-                  e.currentTarget.style.color = '#64748b';
-                }}
-              >
-                Choose New Quiz
-              </button>
+              {/* Mission Intel Badge Moved Here */}
+              <div style={{ marginTop: '20px' }}>
+                <div style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  padding: '10px 20px', 
+                  borderRadius: '100px', 
+                  backgroundColor: 'rgba(45, 212, 191, 0.05)', 
+                  border: '1.5px solid rgba(45, 212, 191, 0.15)',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mission Intel:</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#2dd4bf' }}>{score}/{shuffledQuestions.length} CORRECT</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2810,6 +2709,117 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             >
               CONFIRM
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Already Claimed Modal */}
+      {showAlreadyClaimedModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 9999,
+          backgroundColor: 'rgba(5,10,21,0.96)',
+          backdropFilter: 'blur(24px)',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            maxWidth: '400px', 
+            width: 'calc(100% - 48px)',
+            background: 'linear-gradient(180deg, #111827 0%, #030712 100%)',
+            border: '1px solid rgba(45, 212, 191, 0.25)',
+            borderRadius: '40px',
+            padding: isMobile ? '48px 24px' : '56px 40px',
+            textAlign: 'center',
+            boxShadow: '0 40px 120px rgba(0,0,0,0.8), inset 0 0 80px rgba(45, 212, 191, 0.05)',
+            animation: 'popUpCenter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
+          }}>
+            {/* Ambient Teal Glow */}
+            <div style={{
+              position: 'absolute', top: '0', left: '50%',
+              transform: 'translateX(-50%)',
+              width: '100%', height: '100px',
+              background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)',
+              zIndex: 0, pointerEvents: 'none'
+            }} />
+
+            <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+              {/* Icon - Using App Colors (Teal) */}
+              <div style={{
+                width: '70px', height: '70px', borderRadius: '50%',
+                background: 'rgba(45, 212, 191, 0.05)',
+                border: '1.5px solid rgba(45, 212, 191, 0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 28px',
+                boxShadow: '0 10px 30px rgba(45, 212, 191, 0.1)'
+              }}>
+                <CheckCircle size={32} color="#2dd4bf" style={{ filter: 'drop-shadow(0 0 8px rgba(45,212,191,0.5))' }} />
+              </div>
+
+              <h2 style={{ 
+                fontSize: isMobile ? '1.4rem' : '1.7rem', 
+                fontWeight: '900', 
+                color: 'white', 
+                marginBottom: '16px',
+                fontFamily: "'PP Mori', sans-serif",
+                letterSpacing: '-0.02em',
+                lineHeight: '1.2'
+              }}>
+                Mission <span style={{ color: '#2dd4bf' }}>Secured!</span>
+              </h2>
+
+              <p style={{ 
+                color: '#94a3b8', 
+                fontSize: '0.9rem', 
+                lineHeight: '1.6', 
+                marginBottom: '32px',
+                fontWeight: '500',
+                opacity: 0.9
+              }}>
+                You've already claimed this reward. Great work! Check out other missions to continue earning more G$ tokens.
+              </p>
+
+              <div style={{ width: '100%' }}>
+                <button
+                  onClick={() => setShowAlreadyClaimedModal(false)}
+                  style={{
+                    width: '100%',
+                    padding: '16px 24px',
+                    borderRadius: '100px',
+                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)',
+                    color: '#000',
+                    fontWeight: '900',
+                    fontSize: '0.9rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 8px 24px rgba(45, 212, 191, 0.3)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}
+                  onMouseEnter={e => { 
+                    e.currentTarget.style.transform = 'translateY(-2px)'; 
+                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(45, 212, 191, 0.45)'; 
+                  }}
+                  onMouseLeave={e => { 
+                    e.currentTarget.style.transform = 'translateY(0)'; 
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(45, 212, 191, 0.3)'; 
+                  }}
+                >
+                  DISMISS
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
