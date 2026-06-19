@@ -25,6 +25,8 @@ import {
   X,
   Search,
   CheckCircle,
+  Trophy,
+  Award,
 } from 'lucide-react';
 import { 
   DAO_QUIZZES as daoQuizzes, 
@@ -978,15 +980,18 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             {/* Celebration Icon */}
             <div style={{
               width: '100px', height: '100px', borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, transparent 70%)',
-              border: '1.5px solid rgba(45, 212, 191, 0.1)',
+              background: 'rgba(45, 212, 191, 0.05)',
+              border: '1.5px solid rgba(45, 212, 191, 0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 32px',
-              position: 'relative'
+              position: 'relative',
+              boxShadow: '0 0 30px rgba(45, 212, 191, 0.1)'
             }}>
-              <div style={{ fontSize: '3rem', animation: 'float 3s ease-in-out infinite' }}>
-                {score === shuffledQuestions.length ? '🏆' : '🎉'}
-              </div>
+              {score === shuffledQuestions.length ? (
+                <Trophy size={48} color="#2dd4bf" style={{ filter: 'drop-shadow(0 0 10px rgba(45,212,191,0.5))', animation: 'float 3s ease-in-out infinite' }} />
+              ) : (
+                <Award size={48} color="#2dd4bf" style={{ opacity: 0.8, animation: 'float 3s ease-in-out infinite' }} />
+              )}
             </div>
 
             <h2 style={{ 
