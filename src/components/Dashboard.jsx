@@ -1009,7 +1009,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               color: '#94a3b8', 
               fontSize: '1.05rem', 
               lineHeight: '1.6', 
-              marginBottom: score < 20 ? '20px' : '40px',
+              marginBottom: '32px',
               fontWeight: '500'
             }}>
               {score === shuffledQuestions.length 
@@ -1017,25 +1017,65 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 : "Great job mastering this quiz! Ready for the next challenge?"}
             </p>
 
-            {score < 20 && (
-              <div style={{
-                margin: '0 auto 32px',
-                padding: '6px 14px',
-                borderRadius: '100px',
-                background: 'rgba(245, 158, 11, 0.04)',
-                border: '1px solid rgba(245, 158, 11, 0.12)',
-                color: '#f59e0b',
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.02em'
-              }}>
-                <Zap size={14} fill="#f59e0b" /> Score 20/20 to claim rewards
+            {/* High-Impact Score Card (From Design Inspiration) */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.6)',
+              border: '1.5px solid rgba(45, 212, 191, 0.15)',
+              borderRadius: '24px',
+              padding: '32px',
+              textAlign: 'left',
+              marginBottom: '32px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              position: 'relative',
+              overflow: 'hidden',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    Final Score
+                  </div>
+                  <div style={{ fontSize: '4.5rem', fontWeight: '900', color: '#2dd4bf', lineHeight: '1', fontFamily: "'PP Mori', sans-serif" }}>
+                    {score}/{shuffledQuestions.length}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    Accuracy
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#2dd4bf', fontFamily: "'PP Mori', sans-serif" }}>
+                    {Math.round((score / shuffledQuestions.length) * 100)}%
+                  </div>
+                </div>
               </div>
-            )}
+
+              {/* Thick Teal Divider */}
+              <div style={{ 
+                height: '6px', 
+                background: '#2dd4bf', 
+                borderRadius: '100px', 
+                margin: '24px 0',
+                boxShadow: '0 0 15px rgba(45, 212, 191, 0.3)'
+              }} />
+
+              {/* Status Badge Bar */}
+              <div style={{
+                background: 'rgba(45, 212, 191, 0.05)',
+                border: '1px solid rgba(45, 212, 191, 0.2)',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2dd4bf', boxShadow: '0 0 10px #2dd4bf' }} />
+                <div style={{ color: '#2dd4bf', fontWeight: '700', fontSize: '0.9rem' }}>
+                  {score === shuffledQuestions.length 
+                    ? `✓ Stage cleared with 100% accuracy!` 
+                    : `Mission complete with ${Math.round((score / shuffledQuestions.length) * 100)}% accuracy!`}
+                </div>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {(() => {
@@ -1062,20 +1102,20 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                           borderRadius: '100px', 
                           background: isClaimed 
                             ? 'rgba(45, 212, 191, 0.1)' 
-                            : 'linear-gradient(135deg, #f59e0b, #d97706)', 
+                            : 'linear-gradient(135deg, #2dd4bf, #0d9488)', 
                           color: isClaimed ? '#2dd4bf' : 'black', 
                           fontWeight: '900', 
                           border: isClaimed ? '1.5px solid rgba(45, 212, 191, 0.3)' : 'none',
                           cursor: (isClaiming || isClaimed) ? 'default' : 'pointer', 
                           fontSize: '1rem',
-                          boxShadow: isClaimed ? 'none' : '0 8px 32px rgba(245, 158, 11, 0.3)',
+                          boxShadow: isClaimed ? 'none' : '0 8px 32px rgba(45, 212, 191, 0.3)',
                           transition: 'all 0.2s ease',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                           textTransform: 'uppercase',
                           letterSpacing: '0.05em'
                         }}
-                        onMouseEnter={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(245, 158, 11, 0.45)'; }}}
-                        onMouseLeave={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(245, 158, 11, 0.3)'; }}}
+                        onMouseEnter={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(45, 212, 191, 0.45)'; }}}
+                        onMouseLeave={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(45, 212, 191, 0.3)'; }}}
                       >
                         {isClaiming ? (
                           <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #000', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> PROCESSING...</>
@@ -1105,75 +1145,81 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 return null;
               })()}
 
-              {/* Start Next Mission Button */}
-              {getNextQuiz() && (
-                <button 
-                  onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '18px 24px', 
-                    borderRadius: '100px', 
-                    fontWeight: '800', 
-                    fontSize: '1rem', 
-                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                    color: '#000', 
-                    border: 'none', 
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
-                    transition: 'all 0.2s ease',
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {score < 20 && (
+                  <div style={{
+                    margin: '0 auto 12px',
+                    padding: '6px 14px',
+                    borderRadius: '100px',
+                    background: 'rgba(245, 158, 11, 0.04)',
+                    border: '1px solid rgba(245, 158, 11, 0.12)',
+                    color: '#f59e0b',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.35)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.25)';
-                  }}
-                >
-                  START NEXT MISSION
-                </button>
-              )}
-              
-              {!getNextQuiz() && (
-                <button 
-                  onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
-                  style={{ 
-                    width: '100%', 
-                    padding: '18px 24px', 
-                    borderRadius: '100px', 
-                    fontWeight: '800', 
-                    fontSize: '1rem', 
-                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                    color: '#000', 
-                    border: 'none', 
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
-                    transition: 'all 0.2s ease',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}
-                >
-                  RETURN TO SELECTION
-                </button>
-              )}
-
-              {/* Mission Intel Badge Moved Here */}
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '10px 20px', 
-                  borderRadius: '100px', 
-                  backgroundColor: 'rgba(45, 212, 191, 0.05)', 
-                  border: '1.5px solid rgba(45, 212, 191, 0.15)',
-                }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mission Intel:</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#2dd4bf' }}>{score}/{shuffledQuestions.length} CORRECT</span>
-                </div>
+                    letterSpacing: '0.02em'
+                  }}>
+                    <Zap size={14} fill="#f59e0b" /> Score 20/20 to claim rewards
+                  </div>
+                )}
+                
+                {/* Start Next Mission Button */}
+                {getNextQuiz() && (
+                  <button 
+                    onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
+                    style={{ 
+                      width: '100%', 
+                      padding: '18px 24px', 
+                      borderRadius: '100px', 
+                      fontWeight: '800', 
+                      fontSize: '1rem', 
+                      background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                      color: '#000', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
+                      transition: 'all 0.2s ease',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.35)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.25)';
+                    }}
+                  >
+                    START NEXT MISSION
+                  </button>
+                )}
+                
+                {!getNextQuiz() && (
+                  <button 
+                    onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
+                    style={{ 
+                      width: '100%', 
+                      padding: '18px 24px', 
+                      borderRadius: '100px', 
+                      fontWeight: '800', 
+                      fontSize: '1rem', 
+                      background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
+                      color: '#000', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
+                      transition: 'all 0.2s ease',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    RETURN TO SELECTION
+                  </button>
+                )}
               </div>
             </div>
           </div>
