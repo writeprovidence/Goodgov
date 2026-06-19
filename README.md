@@ -21,7 +21,7 @@ The mission of GoodGov is to transform "dry" technical documentation into an eng
 - **Zero Abuse Policy**: Each user can claim a specific mission's reward exactly once. One-time claiming is strictly enforced both on-chain and via database checks.
 
 ### 📱 Mobile-First Design
-- **Fully Responsive**: Optimized for everything from high-res desktops to the narrow viewport of an iPhone X.
+- **Fully Responsive**: Optimized for everything from high-res desktops to mobile devices.
 - **Tactical Sound Design**: High-fidelity sound effects and background music that work reliably on mobile browsers through specialized AudioContext handling.
 
 ### 🔄 Progressive Synchronization
@@ -36,7 +36,7 @@ The mission of GoodGov is to transform "dry" technical documentation into an eng
 | :--- | :--- |
 | **Frontend** | React 19, Vite, Framer Motion, Lucide icons |
 | **Authentication** | Privy SDK (Social & Web3 Wallets) |
-| **Blockchain** | Celo Network (Mainnet/Alfajores) |
+| **Blockchain** | Celo Network (Mainnet) |
 | **Backend** | Vercel Serverless Functions, Node.js (ESM), Express |
 | **Database** | Supabase (PostgreSQL) |
 | **Smart Contracts** | Solidity (QuizRewards.sol), ethers.js v5 |
