@@ -195,6 +195,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     if (alreadyClaimed) {
       setShowAlreadyClaimedModal(true);
+      // Ensure it's in history so UI stays consistent
+      if (!claimedRewardsHistory[quizId]) {
+        const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now(), txHash: 'Previously Claimed' } };
+        setClaimedRewardsHistory(newHistory);
+        setWalletStorageItem('claim_history', newHistory);
+      }
       return;
     }
 
@@ -277,8 +283,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       
     } catch (err) {
       console.error(err);
-      if (err.message && err.message.includes("Signature already issued")) {
+      if (err.message && (err.message.includes("Signature already issued") || err.message.includes("already claimed"))) {
         setShowAlreadyClaimedModal(true);
+        // Sync local state if contract says it's claimed
+        if (!claimedRewardsHistory[quizId]) {
+          const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now(), txHash: 'Already Claimed' } };
+          setClaimedRewardsHistory(newHistory);
+          setWalletStorageItem('claim_history', newHistory);
+        }
       } else {
         setClaimStatus({ 
           success: false, 
@@ -432,72 +444,88 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
     if (supabase) {
       try {
-        // Fetch claimed rewards history from Supabase
+        console.log('🔄 Syncing user data with Supabase...');
+        
+        // Fetch claimed rewards history
         const { data: claimedData, error: claimedError } = await supabase
           .from('claimed_quizzes')
           .select('*')
           .eq('wallet_address', walletAddress);
 
         if (!claimedError && claimedData) {
-          const history = {};
+          const localHistory = getWalletStorageItem('claim_history', {});
+          const remoteHistory = {};
           claimedData.forEach(item => {
-            history[item.quiz_id] = {
+            remoteHistory[item.quiz_id] = {
               amount: item.amount,
               timestamp: new Date(item.claimed_at).getTime(),
               txHash: item.tx_hash
             };
           });
-          setClaimedRewardsHistory(history);
-          setWalletStorageItem('claim_history', history);
+          
+          // Merge: Remote takes precedence for timestamp/amount, but keep unique local entries
+          const mergedHistory = { ...localHistory, ...remoteHistory };
+          setClaimedRewardsHistory(mergedHistory);
+          setWalletStorageItem('claim_history', mergedHistory);
         }
 
-        // Fetch completed stages from Supabase
+        // Fetch completed stages
         const { data: stagesData, error: stagesError } = await supabase
           .from('completed_stages')
           .select('*')
           .eq('wallet_address', walletAddress);
 
         if (!stagesError && stagesData) {
-          const completed = {
+          const localCompleted = getWalletStorageItem('completed_stages', {
             'Mastery Challenges': false,
             'DAO knowledge': false,
             'Community': false,
             'Basics': false,
-          };
+          });
+          
+          const remoteCompleted = { ...localCompleted };
           stagesData.forEach(item => {
-            if (completed.hasOwnProperty(item.stage_name)) {
-              completed[item.stage_name] = true;
+            if (remoteCompleted.hasOwnProperty(item.stage_name)) {
+              remoteCompleted[item.stage_name] = true;
             }
           });
-          setCompletedStages(completed);
-          setWalletStorageItem('completed_stages', completed);
+          
+          setCompletedStages(remoteCompleted);
+          setWalletStorageItem('completed_stages', remoteCompleted);
         }
 
-        // Fetch perfect quizzes from Supabase
+        // Fetch perfect quizzes
         const { data: perfectData, error: perfectError } = await supabase
           .from('perfect_quizzes')
           .select('*')
           .eq('wallet_address', walletAddress);
 
         if (!perfectError && perfectData) {
-          const perfect = {
+          const localPerfect = getWalletStorageItem('perfect_quizzes', {
             'Mastery Challenges': [],
             'DAO knowledge': [],
             'Community': [],
             'Basics': [],
-          };
+          });
+          
+          const mergedPerfect = { ...localPerfect };
           perfectData.forEach(item => {
-            if (perfect.hasOwnProperty(item.stage_name)) {
-              perfect[item.stage_name].push(item.quiz_title);
+            if (mergedPerfect.hasOwnProperty(item.stage_name)) {
+              if (!mergedPerfect[item.stage_name].includes(item.quiz_title)) {
+                mergedPerfect[item.stage_name].push(item.quiz_title);
+              }
             }
           });
-          setPerfectQuizzes(perfect);
-          setWalletStorageItem('perfect_quizzes', perfect);
+          
+          setPerfectQuizzes(mergedPerfect);
+          setWalletStorageItem('perfect_quizzes', mergedPerfect);
         }
+        
+        console.log('✅ Sync complete');
 
       } catch (err) {
-        console.error('Error fetching from Supabase:', err);
-        // Fall back to localStorage if Supabase fails
+        console.error('❌ Error fetching from Supabase:', err);
+        // Fail gracefully and use local data
         setClaimedRewardsHistory(getWalletStorageItem('claim_history', {}));
         setCompletedStages(getWalletStorageItem('completed_stages', {
           'Mastery Challenges': false,
@@ -513,7 +541,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         }));
       }
     } else {
-      // No Supabase, use localStorage
+      // No Supabase configured, strictly use localStorage
       setClaimedRewardsHistory(getWalletStorageItem('claim_history', {}));
       setCompletedStages(getWalletStorageItem('completed_stages', {
         'Mastery Challenges': false,
@@ -645,7 +673,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const categories = ['All', 'DAO knowledge', 'Community', 'Basics'];
 
   // Redundant tab reset effect removed to fix sidebar navigation functionality
-
+  
   const stageQuizCounts = { 
     'Mastery Challenges': [
       ...daoQuizzes,
@@ -655,6 +683,54 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
     'Community': Object.values(ECOSYSTEM_QUIZZES).flat().length, 
     'Basics': web3Quizzes.length 
   };
+
+  const masteryStats = React.useMemo(() => {
+    const perfectQuizTitles = Object.values(perfectQuizzes).flat();
+    const claimedQuizTitles = Object.keys(claimedRewardsHistory);
+    const uniquePerfectTitles = new Set([...perfectQuizTitles, ...claimedQuizTitles]);
+    
+    const count = uniquePerfectTitles.size;
+    const score = count * 100;
+    
+    // Rank calculation logic
+    let rank = 'Recruit';
+    if (score >= 2000) rank = 'Grandmaster';
+    else if (score >= 1000) rank = 'Elite Agent';
+    else if (score >= 100) rank = 'Field Agent';
+
+    // Per-category counts for Sector Breakthroughs
+    const sectorStats = {
+      'DAO knowledge': new Set(perfectQuizzes['DAO knowledge'] || []),
+      'Community': new Set(perfectQuizzes['Community'] || []),
+      'Basics': new Set(perfectQuizzes['Basics'] || []),
+    };
+
+    // Enrich with claimed quizzes
+    const allQuizzes = [
+      ...daoQuizzes, 
+      ...web3Quizzes, 
+      ...Object.values(ECOSYSTEM_QUIZZES).flat()
+    ];
+    
+    claimedQuizTitles.forEach(title => {
+      const quiz = allQuizzes.find(q => q.title === title);
+      const stage = quiz?.stage;
+      if (stage && sectorStats[stage]) {
+        sectorStats[stage].add(title);
+      }
+    });
+
+    return {
+      totalScore: score,
+      completedCount: count,
+      rank,
+      sectorCounts: {
+        'DAO knowledge': sectorStats['DAO knowledge'].size,
+        'Community': sectorStats['Community'].size,
+        'Basics': sectorStats['Basics'].size,
+      }
+    };
+  }, [perfectQuizzes, claimedRewardsHistory]);
 
   const allStagesComplete = completedStages['DAO knowledge'] && completedStages['Community'] && completedStages['Basics'];
 
@@ -2227,8 +2303,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   };
 
   const renderProfile = () => {
-    const totalScore = Object.values(perfectQuizzes).flat().length * 100;
-    const completedCount = Object.values(perfectQuizzes).flat().length;
+    const { totalScore, completedCount } = masteryStats;
     const totalClaimed = Object.values(claimedRewardsHistory).reduce((sum, c) => sum + (c.amount || 0), 0);
     const claimCount = Object.keys(claimedRewardsHistory).length;
 
@@ -2372,7 +2447,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {categories.filter(c => c !== 'All').map(cat => {
-              const count = perfectQuizzes[cat]?.length || 0;
+              const count = masteryStats.sectorCounts[cat] || 0;
               const total = stageQuizCounts[cat];
               const pct = total > 0 ? (count / total) * 100 : 0;
               return (
@@ -2415,16 +2490,18 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               {Object.entries(claimedRewardsHistory).map(([qId, claim], i) => {
                 const claimDate = new Date(claim.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderRadius: '14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 8px rgba(245,158,11,0.5)', flexShrink: 0 }} />
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderRadius: '14px', background: 'rgba(245,158,11,0.03)', border: '1px solid rgba(245,158,11,0.1)', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#f59e0b' }}>
+                        10
+                      </div>
                       <div>
-                        <div style={{ color: 'white', fontWeight: '700', fontSize: '0.88rem' }}>{qId}</div>
+                        <div style={{ color: 'white', fontWeight: '700', fontSize: '0.9rem' }}>{qId}</div>
                         <div style={{ color: '#475569', fontSize: '0.75rem' }}>{claimDate}</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontWeight: '900', color: '#f59e0b', fontSize: '0.95rem' }}>+{claim.amount} G$</span>
+                      <span style={{ fontWeight: '900', color: '#f59e0b', fontSize: '1.1rem' }}>+10 G$</span>
                     </div>
                   </div>
                 );
@@ -2660,7 +2737,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       {/* Top Navigation Bar */}
       <header style={{
         height: '80px',
-        padding: isMobile ? '0 20px' : '0 40px',
+        padding: isMobile ? '0 16px' : '0 40px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -2670,33 +2747,33 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         top: 0,
         zIndex: 100,
         borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        gap: '40px'
+        gap: isMobile ? '12px' : '40px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '32px', flexShrink: 0 }}>
           {isMobile && !activeQuiz && (
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
             >
-              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              {isSidebarOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           )}
           <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleBack}>
             <img
               src="/logo/goodgov_logo.png"
               alt="GoodGov"
-              style={{ height: isMobile ? '40px' : '54px', width: 'auto', objectFit: 'contain' }}
+              style={{ height: isMobile ? '32px' : '54px', width: 'auto', objectFit: 'contain' }}
             />
           </div>
         </div>
 
-        {/* Global Search Bar */}
-        {!activeQuiz && (
+        {/* Global Search Bar - Hidden on mobile to save space */}
+        {!activeQuiz && !isMobile && (
           <div style={{ position: 'relative', flex: 1, maxWidth: '600px' }}>
             <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
             <input 
               type="text" 
-              placeholder=""
+              placeholder="Search missions, glossary, or forums..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -2716,16 +2793,23 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           {!isLoggedIn ? (
             <button 
               onClick={connectWallet}
               disabled={isConnecting}
-              className="btn-primary"
               style={{
+                padding: isMobile ? '10px 16px' : '12px 24px',
+                borderRadius: '0px',
+                background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)',
+                color: 'black',
                 border: 'none',
+                fontWeight: '800',
+                fontSize: isMobile ? '0.75rem' : '0.9rem',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                boxShadow: '0 4px 15px rgba(45, 212, 191, 0.2)',
+                transition: 'all 0.2s'
               }}
             >
               {isConnecting ? '...' : 'Connect Wallet'}
@@ -2777,11 +2861,11 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   <div style={{ backgroundColor: '#0a0f1e', borderRadius: '20px', padding: '20px', border: '1px solid #1e293b' }}>
                     <div style={{ marginBottom: '16px' }}>
                       <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>CURRENT RANK</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'white' }}>Field Agent</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: '900', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{masteryStats.rank}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700', marginBottom: '4px' }}>MASTERY SCORE</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#2dd4bf' }}>{Object.values(perfectQuizzes).flat().length * 100} PTS</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#2dd4bf' }}>{masteryStats.totalScore} PTS</div>
                     </div>
                   </div>
                 </div>
