@@ -119,6 +119,24 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => {
     return localStorage.getItem('quiz_rewards_contract') || QUIZ_REWARDS_CONTRACT;
   });
+  const [pendingClaims, setPendingClaims] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('goodgov_pending_claims') || '[]'); } catch { return []; }
+  });
+  const savePendingClaim = (quizId) => {
+    setPendingClaims(prev => {
+      if (prev.includes(quizId)) return prev;
+      const next = [...prev, quizId];
+      localStorage.setItem('goodgov_pending_claims', JSON.stringify(next));
+      return next;
+    });
+  };
+  const removePendingClaim = (quizId) => {
+    setPendingClaims(prev => {
+      const next = prev.filter(id => id !== quizId);
+      localStorage.setItem('goodgov_pending_claims', JSON.stringify(next));
+      return next;
+    });
+  };
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(true);
   const loadingAudioRef = useRef(null);
@@ -588,7 +606,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   useEffect(() => {
     if (currentView === 'quiz' && !quizCompleted && !isLaunching && backgroundMusicEnabled) {
       if (!backgroundAudioRef.current) {
-        backgroundAudioRef.current = new Audio('/audio/background.mp3');
+        backgroundAudioRef.current = new Audio('/audio/millionaire.mp3');
         backgroundAudioRef.current.loop = true;
         backgroundAudioRef.current.volume = 0.3;
       }
@@ -964,302 +982,373 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         );
       }
 
+      // Particle burst component for perfect score
+      const particles = isPerfectRun
+        ? Array.from({ length: 20 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: Math.random() * 8 + 4,
+            color: ['#2dd4bf', '#f59e0b', '#a78bfa', '#34d399', '#60a5fa'][Math.floor(Math.random() * 5)],
+            delay: Math.random() * 0.8,
+            duration: Math.random() * 1.5 + 1.2,
+          }))
+        : [];
+
+      const accuracyPct = Math.round((score / shuffledQuestions.length) * 100);
+      const rank = accuracyPct === 100 ? 'GRANDMASTER' : accuracyPct >= 80 ? 'ELITE AGENT' : accuracyPct >= 60 ? 'FIELD AGENT' : 'RECRUIT';
+      const rankColor = accuracyPct === 100 ? '#f59e0b' : accuracyPct >= 80 ? '#2dd4bf' : accuracyPct >= 60 ? '#818cf8' : '#94a3b8';
+      const quizId = activeQuiz?.title || 'Mission';
+      const isClaimed = !!claimedRewardsHistory[quizId];
+      const isPending = pendingClaims.includes(quizId);
+      const isEligible = score === 20 && shuffledQuestions.length === 20;
+
+      // SVG ring dimensions
+      const ringRadius = 70;
+      const ringCirc = 2 * Math.PI * ringRadius;
+      const ringFill = ringCirc * (1 - accuracyPct / 100);
+
       return (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          backgroundColor: '#050a15', 
-          color: 'white', 
-          zIndex: 1100, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          animation: 'fadeIn 0.4s ease-out'
-        }}>
-          <div style={{ maxWidth: '440px', width: '100%', textAlign: 'center', padding: '24px' }}>
-            {/* Celebration Icon */}
+        <>
+          {/* ── Fixed background layer (scanlines, particles, glow, corners) ── */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1100, pointerEvents: 'none', animation: 'fadeIn 0.5s ease-out', backgroundColor: '#050a15' }}>
+            {/* Scanline grid */}
             <div style={{
-              width: '100px', height: '100px', borderRadius: '50%',
-              background: 'rgba(45, 212, 191, 0.05)',
-              border: '1.5px solid rgba(45, 212, 191, 0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 32px',
-              position: 'relative',
-              boxShadow: '0 0 30px rgba(45, 212, 191, 0.1)'
+              position: 'absolute', inset: 0,
+              backgroundImage: `linear-gradient(rgba(45,212,191,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(45,212,191,0.03) 1px, transparent 1px)`,
+              backgroundSize: '40px 40px'
+            }} />
+            {/* Radial glow */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: `radial-gradient(ellipse at 50% 50%, ${isPerfectRun ? 'rgba(45,212,191,0.1)' : 'rgba(99,102,241,0.08)'} 0%, transparent 65%)`
+            }} />
+            {/* Corner brackets */}
+            {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos,i) => (
+              <div key={i} style={{
+                position: 'absolute', ...pos, width: '80px', height: '80px',
+                borderTop: i < 2 ? '2px solid rgba(45,212,191,0.25)' : 'none',
+                borderBottom: i >= 2 ? '2px solid rgba(45,212,191,0.25)' : 'none',
+                borderLeft: i % 2 === 0 ? '2px solid rgba(45,212,191,0.25)' : 'none',
+                borderRight: i % 2 === 1 ? '2px solid rgba(45,212,191,0.25)' : 'none',
+              }} />
+            ))}
+            {/* Particles */}
+            {particles.map(p => (
+              <div key={p.id} style={{
+                position: 'absolute',
+                left: `${p.x}%`, top: `${p.y}%`,
+                width: `${p.size}px`, height: `${p.size}px`,
+                borderRadius: '50%',
+                backgroundColor: p.color,
+                boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+                animation: `particlePop ${p.duration}s ${p.delay}s ease-out both`,
+              }} />
+            ))}
+          </div>
+
+          {/* ── Main card (perfectly centered) ── */}
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1101,
+            width: isMobile ? 'calc(100% - 32px)' : '600px',
+            maxHeight: '92vh',
+            overflowY: 'auto',
+            background: 'linear-gradient(160deg, rgba(15,23,42,0.97) 0%, rgba(5,10,21,0.99) 100%)',
+            border: `1.5px solid ${isPerfectRun ? 'rgba(45,212,191,0.4)' : 'rgba(99,102,241,0.3)'}`,
+            borderRadius: '24px',
+            padding: isMobile ? '40px 20px 28px' : '60px 52px 48px',
+            boxShadow: `0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)`,
+            animation: 'popUpCenter 0.5s cubic-bezier(0.16,1,0.3,1) forwards',
+            boxSizing: 'border-box',
+            backdropFilter: 'blur(20px)',
+          }}>
+
+            {/* ── Status ribbon ── */}
+            <div style={{
+              position: 'absolute', top: '-1px', left: '50%', transform: 'translateX(-50%)',
+              padding: '6px 20px',
+              background: isPerfectRun
+                ? 'linear-gradient(90deg, #0d9488, #2dd4bf)'
+                : 'linear-gradient(90deg, #4f46e5, #818cf8)',
+              borderRadius: '0 0 14px 14px',
+              fontSize: '0.65rem', fontWeight: '900',
+              color: 'white', letterSpacing: '0.18em', textTransform: 'uppercase',
+              boxShadow: isPerfectRun ? '0 4px 20px rgba(45,212,191,0.4)' : '0 4px 20px rgba(99,102,241,0.4)',
+              whiteSpace: 'nowrap'
             }}>
-              {score === shuffledQuestions.length ? (
-                <Trophy size={48} color="#2dd4bf" style={{ filter: 'drop-shadow(0 0 10px rgba(45,212,191,0.5))', animation: 'float 3s ease-in-out infinite' }} />
-              ) : (
-                <Award size={48} color="#2dd4bf" style={{ opacity: 0.8, animation: 'float 3s ease-in-out infinite' }} />
-              )}
+              {isPerfectRun ? '⚡ MISSION COMPLETE — PERFECT RUN' : '▸ MISSION COMPLETE'}
             </div>
 
-            <h2 style={{ 
-              fontSize: '2.5rem', 
-              fontWeight: '900', 
-              color: 'white', 
-              marginBottom: '16px',
-              fontFamily: "'PP Mori', sans-serif",
-              letterSpacing: '-0.02em'
-            }}>
-              All Done!
-            </h2>
+            {/* ── Score ring + center ── */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', marginTop: '12px' }}>
+              <div style={{ position: 'relative', width: '130px', height: '130px' }}>
+                {/* Glow behind ring */}
+                <div style={{
+                  position: 'absolute', inset: '8px', borderRadius: '50%',
+                  background: `radial-gradient(circle, ${isPerfectRun ? 'rgba(45,212,191,0.12)' : 'rgba(99,102,241,0.1)'} 0%, transparent 70%)`
+                }} />
+                <svg width="130" height="130" style={{ transform: 'rotate(-90deg)', position: 'absolute', inset: 0 }}>
+                  <circle cx="65" cy="65" r="52" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                  <circle
+                    cx="65" cy="65" r="52"
+                    fill="none"
+                    stroke={isPerfectRun ? 'url(#ringGrad)' : '#818cf8'}
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 52}
+                    strokeDashoffset={2 * Math.PI * 52 * (1 - accuracyPct / 100)}
+                    style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)', filter: `drop-shadow(0 0 6px ${isPerfectRun ? '#2dd4bf' : '#818cf8'})` }}
+                  />
+                  <defs>
+                    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#0d9488" />
+                      <stop offset="100%" stopColor="#2dd4bf" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                {/* Center content */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <div style={{ fontSize: '2.1rem', fontWeight: '900', lineHeight: 1, color: 'white', letterSpacing: '-0.04em' }}>{score}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: '700' }}>/ {shuffledQuestions.length}</div>
+                  <div style={{ fontSize: '0.6rem', fontWeight: '800', color: isPerfectRun ? '#2dd4bf' : '#818cf8', letterSpacing: '0.1em', marginTop: '2px', textTransform: 'uppercase' }}>{accuracyPct}%</div>
+                </div>
+              </div>
+            </div>
 
-            <p style={{ 
-              color: '#94a3b8', 
-              fontSize: '1.05rem', 
-              lineHeight: '1.6', 
-              marginBottom: score < 20 ? '20px' : '40px',
-              fontWeight: '500'
-            }}>
-              {score === shuffledQuestions.length 
-                ? "Perfect mastery achieved! You've successfully secured all mission data."
-                : "Great job mastering this quiz! Ready for the next challenge?"}
-            </p>
+            {/* ── Rank badge ── */}
+            <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '5px 14px',
+                borderRadius: '100px',
+                background: `${rankColor}15`,
+                border: `1.5px solid ${rankColor}40`,
+                boxShadow: `0 0 16px ${rankColor}20`
+              }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: '900', color: rankColor, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                  {isPerfectRun ? '🏆' : '🎯'} RANK — {rank}
+                </span>
+              </div>
+            </div>
 
+            {/* ── Stat tiles ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+              {[
+                { label: 'Correct', value: score, color: '#2dd4bf' },
+                { label: 'Accuracy', value: `${accuracyPct}%`, color: isPerfectRun ? '#f59e0b' : '#818cf8' },
+                { label: 'Wrong', value: shuffledQuestions.length - score, color: shuffledQuestions.length - score === 0 ? '#34d399' : '#f87171' }
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${stat.color}20`,
+                  borderRadius: '12px',
+                  padding: '10px 8px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: stat.color }}>{stat.value}</div>
+                  <div style={{ fontSize: '0.58rem', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '3px' }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── XP bar ── */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.62rem', fontWeight: '900', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.12em' }}>XP Earned</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: '900', color: '#f59e0b' }}>+{score * 5} XP</span>
+              </div>
+              <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '100px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${(score / shuffledQuestions.length) * 100}%`,
+                  background: 'linear-gradient(90deg, #f59e0b, #fcd34d)',
+                  borderRadius: '100px',
+                  boxShadow: '0 0 10px rgba(245,158,11,0.5)',
+                  transition: 'width 1.4s cubic-bezier(0.4,0,0.2,1)'
+                }} />
+              </div>
+            </div>
+
+            {/* ── Low score nudge ── */}
             {score < 20 && (
               <div style={{
-                margin: '0 auto 32px',
-                padding: '6px 14px',
-                borderRadius: '100px',
-                background: 'rgba(245, 158, 11, 0.04)',
-                border: '1px solid rgba(245, 158, 11, 0.12)',
-                color: '#f59e0b',
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.02em'
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '8px 12px',
+                borderRadius: '10px',
+                background: 'rgba(245, 158, 11, 0.05)',
+                border: '1px solid rgba(245, 158, 11, 0.15)',
+                marginBottom: '12px'
               }}>
-                <Zap size={14} fill="#f59e0b" /> Score 20/20 to claim rewards
+                <Zap size={13} fill="#f59e0b" color="#f59e0b" />
+                <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#f59e0b' }}>Score 20/20 to unlock the 10 G$ reward</span>
               </div>
             )}
 
-            {/* High-Premium Mission Intel Dashboard */}
-            <div style={{
-              margin: '0 auto 44px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '12px',
-              position: 'relative'
-            }}>
-              {/* Floating Accuracy Badge */}
-              <div style={{
-                padding: '6px 14px',
-                borderRadius: '100px',
-                background: 'rgba(45, 212, 191, 0.1)',
-                border: '1px solid rgba(45, 212, 191, 0.2)',
-                color: '#2dd4bf',
-                fontSize: '0.7rem',
-                fontWeight: '900',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                boxShadow: '0 0 20px rgba(45, 212, 191, 0.15)',
-                animation: 'fadeInUp 0.6s ease-out'
-              }}>
-                Accuracy Secured
-              </div>
+            {/* ── Action buttons ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-              {/* Main Score Display (Floating) */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'baseline', 
-                gap: '8px',
-                animation: 'fadeInUp 0.8s ease-out'
-              }}>
-                <span style={{ 
-                  fontSize: '4rem', 
-                  fontWeight: '900', 
-                  color: 'white', 
-                  lineHeight: '1',
-                  fontFamily: "'PP Mori', sans-serif",
-                  letterSpacing: '-0.04em'
-                }}>
-                  {score}
-                </span>
-                <span style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: '700', 
-                  color: 'rgba(255,255,255,0.2)',
-                  fontFamily: "'PP Mori', sans-serif"
-                }}>
-                  / {shuffledQuestions.length}
-                </span>
-              </div>
-
-              {/* Stats Bar */}
-              <div style={{ 
-                width: '180px', 
-                height: '4px', 
-                background: 'rgba(255,255,255,0.05)', 
-                borderRadius: '100px',
-                overflow: 'hidden',
-                marginTop: '4px'
-              }}>
-                <div style={{ 
-                  width: `${(score/shuffledQuestions.length)*100}%`, 
-                  height: '100%', 
-                  background: 'linear-gradient(90deg, #2dd4bf, #0d9488)',
-                  boxShadow: '0 0 10px #2dd4bf'
-                }} />
-              </div>
-
-              <div style={{ 
-                fontSize: '0.85rem', 
-                fontWeight: '800', 
-                color: '#64748b', 
-                marginTop: '4px',
-                letterSpacing: '0.02em',
-                opacity: 0.8
-              }}>
-                Mission Intelligence: <span style={{ color: '#2dd4bf' }}>{Math.round((score/shuffledQuestions.length)*100)}% SUCCESS RATE</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {(() => {
-                const quizId = activeQuiz?.title || 'Mission';
-                const isClaimed = !!claimedRewardsHistory[quizId];
-                const isEligible = score === 20 && shuffledQuestions.length === 20;
-                
-                if (isEligible) {
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button 
-                        onClick={() => {
-                          if (isClaimed) return;
-                          if (!authenticated) {
-                            login();
-                          } else {
-                            handleClaimReward(quizId);
-                          }
-                        }}
-                        disabled={isClaiming || isClaimed}
-                        style={{ 
-                          width: '100%', 
-                          padding: '18px 24px', 
-                          borderRadius: '100px', 
-                          background: isClaimed 
-                            ? 'rgba(45, 212, 191, 0.1)' 
-                            : 'linear-gradient(135deg, #2dd4bf, #0d9488)', 
-                          color: isClaimed ? '#2dd4bf' : 'black', 
-                          fontWeight: '900', 
-                          border: isClaimed ? '1.5px solid rgba(45, 212, 191, 0.3)' : 'none',
-                          cursor: (isClaiming || isClaimed) ? 'default' : 'pointer', 
-                          fontSize: '1rem',
-                          boxShadow: isClaimed ? 'none' : '0 8px 32px rgba(45, 212, 191, 0.3)',
-                          transition: 'all 0.2s ease',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em'
-                        }}
-                        onMouseEnter={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(45, 212, 191, 0.45)'; }}}
-                        onMouseLeave={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(45, 212, 191, 0.3)'; }}}
-                      >
-                        {isClaiming ? (
-                          <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #000', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> PROCESSING...</>
-                        ) : isClaimed ? (
-                          'CLAIMED'
-                        ) : (
-                          authenticated ? 'CLAIM 10 G$ REWARD' : 'LOGIN TO CLAIM'
-                        )}
-                      </button>
-                      
-                      {claimStatus && !claimStatus.success && (
-                        <div style={{ 
-                          padding: '12px', 
-                          borderRadius: '12px', 
-                          backgroundColor: 'rgba(239, 68, 68, 0.1)', 
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          color: '#ef4444',
-                          fontSize: '0.85rem',
-                          fontWeight: '600'
-                        }}>
-                          ⚠️ {claimStatus.message}
-                        </div>
-                      )}
+              {/* CLAIM button */}
+              {isEligible && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      if (isClaimed) return;
+                      if (!authenticated) { login(); }
+                      else { removePendingClaim(quizId); handleClaimReward(quizId); }
+                    }}
+                    disabled={isClaiming || isClaimed}
+                    style={{
+                      width: '100%', padding: '13px 20px',
+                      borderRadius: '6px',
+                      background: isClaimed
+                        ? 'rgba(45,212,191,0.05)'
+                        : 'linear-gradient(135deg, rgba(13,148,136,0.25), rgba(45,212,191,0.15))',
+                      color: isClaimed ? '#475569' : '#2dd4bf',
+                      fontWeight: '900', fontSize: '0.9rem',
+                      border: isClaimed
+                        ? '1.5px solid rgba(71,85,105,0.2)'
+                        : '1.5px solid rgba(45,212,191,0.4)',
+                      cursor: (isClaiming || isClaimed) ? 'default' : 'pointer',
+                      boxShadow: isClaimed ? 'none' : '0 0 24px rgba(45,212,191,0.15)',
+                      transition: 'all 0.25s ease',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                      textTransform: 'uppercase', letterSpacing: '0.1em',
+                      position: 'relative', overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(13,148,136,0.4), rgba(45,212,191,0.25))'; e.currentTarget.style.boxShadow = '0 0 36px rgba(45,212,191,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}}
+                    onMouseLeave={(e) => { if (!isClaiming && !isClaimed) { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(13,148,136,0.25), rgba(45,212,191,0.15))'; e.currentTarget.style.boxShadow = '0 0 24px rgba(45,212,191,0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}}
+                  >
+                    {isClaiming ? (
+                      <><span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #2dd4bf', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> PROCESSING...</>
+                    ) : isClaimed ? (
+                      '✓ REWARD CLAIMED'
+                    ) : (
+                      <><CheckCircle size={16} /> CLAIM 10 G$ REWARD</>
+                    )}
+                  </button>
+                  {claimStatus && !claimStatus.success && (
+                    <div style={{ padding: '10px 14px', borderRadius: '12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: '0.82rem', fontWeight: '600' }}>
+                      ⚠️ {claimStatus.message}
                     </div>
-                  );
-                }
-                return null;
-              })()}
+                  )}
+                </div>
+              )}
 
-              {/* Start Next Mission Button */}
-              {getNextQuiz() && (
-                <button 
-                  onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '18px 24px', 
-                    borderRadius: '100px', 
-                    fontWeight: '800', 
-                    fontSize: '1rem', 
-                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                    color: '#000', 
-                    border: 'none', 
+              {/* REPEAT MISSION button — shown only when score < 20 */}
+              {!isEligible && (
+                <button
+                  onClick={() => startQuiz(activeQuiz, activeQuizStage)}
+                  style={{
+                    width: '100%', padding: '13px 20px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(252,211,77,0.08))',
+                    color: '#f59e0b',
+                    fontWeight: '900', fontSize: '0.88rem',
+                    border: '1.5px solid rgba(245,158,11,0.35)',
                     cursor: 'pointer',
-                    boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
-                    transition: 'all 0.2s ease',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
+                    boxShadow: '0 0 20px rgba(245,158,11,0.1)',
+                    transition: 'all 0.22s ease',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    textTransform: 'uppercase', letterSpacing: '0.1em',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(45,212,191,0.35)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(45,212,191,0.25)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(245,158,11,0.28), rgba(252,211,77,0.15))'; e.currentTarget.style.boxShadow = '0 0 32px rgba(245,158,11,0.25)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(252,211,77,0.08))'; e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                 >
-                  START NEXT MISSION
+                  🔄 REPEAT MISSION
                 </button>
               )}
-              
-              {!getNextQuiz() && (
-                <button 
-                  onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }} 
-                  style={{ 
-                    width: '100%', 
-                    padding: '18px 24px', 
-                    borderRadius: '100px', 
-                    fontWeight: '800', 
-                    fontSize: '1rem', 
-                    background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)', 
-                    color: '#000', 
-                    border: 'none', 
+
+              {/* NEXT MISSION button */}
+              {getNextQuiz() ? (
+                <button
+                  onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
+                  style={{
+                    width: '100%', padding: '12px 20px',
+                    borderRadius: '6px',
+                    background: 'rgba(99,102,241,0.1)',
+                    color: '#a5b4fc',
+                    fontWeight: '800', fontSize: '0.82rem',
+                    border: '1.5px solid rgba(99,102,241,0.25)',
                     cursor: 'pointer',
-                    boxShadow: '0 8px 32px rgba(45,212,191,0.25)',
-                    transition: 'all 0.2s ease',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
+                    transition: 'all 0.22s ease',
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  <ChevronRight size={15} /> START NEXT MISSION
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }}
+                  style={{
+                    width: '100%', padding: '12px 20px',
+                    borderRadius: '6px',
+                    background: 'rgba(99,102,241,0.1)',
+                    color: '#a5b4fc',
+                    fontWeight: '800', fontSize: '0.82rem',
+                    border: '1.5px solid rgba(99,102,241,0.25)',
+                    cursor: 'pointer',
+                    transition: 'all 0.22s ease',
+                    textTransform: 'uppercase', letterSpacing: '0.08em'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                 >
                   RETURN TO SELECTION
                 </button>
               )}
 
-              {/* Mission Intel Badge Moved Here */}
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '10px 20px', 
-                  borderRadius: '100px', 
-                  backgroundColor: 'rgba(45, 212, 191, 0.05)', 
-                  border: '1.5px solid rgba(45, 212, 191, 0.15)',
-                }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mission Intel:</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#2dd4bf' }}>{score}/{shuffledQuestions.length} CORRECT</span>
+              {/* SKIP button */}
+              {isEligible && !isClaimed && !isPending && (
+                <button
+                  onClick={() => savePendingClaim(quizId)}
+                  style={{
+                    width: '100%', padding: '12px 20px',
+                    borderRadius: '6px',
+                    background: 'transparent',
+                    color: '#475569',
+                    fontWeight: '700', fontSize: '0.82rem',
+                    border: '1.5px solid rgba(51,65,85,0.3)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(71,85,105,0.5)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = 'rgba(51,65,85,0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  Skip
+                </button>
+              )}
+
+              {/* Pending confirmation */}
+              {isEligible && !isClaimed && isPending && (
+                <div style={{ textAlign: 'center', fontSize: '0.78rem', color: '#2dd4bf', fontWeight: '700', opacity: 0.8, paddingTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <CheckCircle size={13} /> Saved to Profile · Claim anytime
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
+              )}
+            </div>{/* end action buttons */}
+          </div>{/* end card */}
+
+          {/* inject particlePop keyframe */}
+          <style>{`
+            @keyframes particlePop {
+              0% { transform: scale(0) translate(0,0); opacity: 1; }
+              60% { opacity: 0.8; }
+              100% { transform: scale(1.5) translate(${Math.random() > 0.5 ? '' : '-'}${Math.floor(Math.random()*60+20)}px, -${Math.floor(Math.random()*80+40)}px); opacity: 0; }
+            }
+          `}</style>
+        </>
       );
     }
 
@@ -2179,6 +2268,13 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             amount: 10
           });
         }
+      }
+    });
+
+    // Also include pending (skipped) claims not already in perfectQuizzes
+    pendingClaims.forEach(quizId => {
+      if (!claimedRewardsHistory[quizId] && !unclaimedRewards.find(r => r.quizTitle === quizId)) {
+        unclaimedRewards.push({ quizTitle: quizId, stage: 'Pending', amount: 10 });
       }
     });
 
