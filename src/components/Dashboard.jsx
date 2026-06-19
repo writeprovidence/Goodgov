@@ -1037,6 +1037,88 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               </div>
             )}
 
+            {/* High-Premium Mission Intel Dashboard */}
+            <div style={{
+              margin: '0 auto 44px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              position: 'relative'
+            }}>
+              {/* Floating Accuracy Badge */}
+              <div style={{
+                padding: '6px 14px',
+                borderRadius: '100px',
+                background: 'rgba(45, 212, 191, 0.1)',
+                border: '1px solid rgba(45, 212, 191, 0.2)',
+                color: '#2dd4bf',
+                fontSize: '0.7rem',
+                fontWeight: '900',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                boxShadow: '0 0 20px rgba(45, 212, 191, 0.15)',
+                animation: 'fadeInUp 0.6s ease-out'
+              }}>
+                Accuracy Secured
+              </div>
+
+              {/* Main Score Display (Floating) */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'baseline', 
+                gap: '8px',
+                animation: 'fadeInUp 0.8s ease-out'
+              }}>
+                <span style={{ 
+                  fontSize: '4rem', 
+                  fontWeight: '900', 
+                  color: 'white', 
+                  lineHeight: '1',
+                  fontFamily: "'PP Mori', sans-serif",
+                  letterSpacing: '-0.04em'
+                }}>
+                  {score}
+                </span>
+                <span style={{ 
+                  fontSize: '1.5rem', 
+                  fontWeight: '700', 
+                  color: 'rgba(255,255,255,0.2)',
+                  fontFamily: "'PP Mori', sans-serif"
+                }}>
+                  / {shuffledQuestions.length}
+                </span>
+              </div>
+
+              {/* Stats Bar */}
+              <div style={{ 
+                width: '180px', 
+                height: '4px', 
+                background: 'rgba(255,255,255,0.05)', 
+                borderRadius: '100px',
+                overflow: 'hidden',
+                marginTop: '4px'
+              }}>
+                <div style={{ 
+                  width: `${(score/shuffledQuestions.length)*100}%`, 
+                  height: '100%', 
+                  background: 'linear-gradient(90deg, #2dd4bf, #0d9488)',
+                  boxShadow: '0 0 10px #2dd4bf'
+                }} />
+              </div>
+
+              <div style={{ 
+                fontSize: '0.85rem', 
+                fontWeight: '800', 
+                color: '#64748b', 
+                marginTop: '4px',
+                letterSpacing: '0.02em',
+                opacity: 0.8
+              }}>
+                Mission Intelligence: <span style={{ color: '#2dd4bf' }}>{Math.round((score/shuffledQuestions.length)*100)}% SUCCESS RATE</span>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {(() => {
                 const quizId = activeQuiz?.title || 'Mission';
