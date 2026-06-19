@@ -960,28 +960,6 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       const isPerfectRun = score === shuffledQuestions.length;
       const isGlossaryQuiz = activeQuizStage === 'Knowledge Base';
 
-      if (isGlossaryQuiz) {
-        return (
-          <div style={{ position: 'fixed', inset: 0, backgroundColor: '#050a15', color: 'white', zIndex: 1100, padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ maxWidth: '480px', width: '100%', textAlign: 'center', animation: 'fadeIn 0.5s ease-out' }}>
-              <div style={{ fontSize: '5rem', marginBottom: '24px' }}>📊</div>
-              <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '16px' }}>Intelligence Check Complete</h2>
-              <div style={{ backgroundColor: '#0f172a', border: '1.5px solid #1e293b', borderRadius: '24px', padding: '40px', marginBottom: '32px' }}>
-                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>Final Score</div>
-                <div style={{ fontSize: '4rem', fontWeight: '900', color: '#2dd4bf' }}>{score}/{shuffledQuestions.length}</div>
-                <div style={{ marginTop: '16px', color: '#94a3b8', fontSize: '0.95rem' }}>{activeQuiz.title}</div>
-              </div>
-              <button 
-                onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }}
-                style={{ width: '100%', padding: '20px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', background: '#2dd4bf', color: 'black', border: 'none', cursor: 'pointer', boxShadow: '0 8px 30px rgba(45, 212, 191, 0.2)' }}
-              >
-                RETURN TO GLOSSARY
-              </button>
-            </div>
-          </div>
-        );
-      }
-
       // Particle burst component for perfect score
       const particles = isPerfectRun
         ? Array.from({ length: 20 }, (_, i) => ({
@@ -1178,7 +1156,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             </div>
 
             {/* ── Low score nudge ── */}
-            {score < 20 && (
+            {score < shuffledQuestions.length && !isGlossaryQuiz && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '8px 12px',
@@ -1304,7 +1282,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                 >
-                  RETURN TO SELECTION
+                  {isGlossaryQuiz ? 'RETURN TO GLOSSARY' : 'RETURN TO SELECTION'}
                 </button>
               )}
 

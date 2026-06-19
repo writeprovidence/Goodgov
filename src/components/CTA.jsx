@@ -80,9 +80,15 @@ const CTA = ({ onStart }) => {
               <button 
                 className="btn-primary" 
                 onClick={onStart}
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}
               >
-                Initialize Mission
+                Play Now
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
               </button>
             </div>
           </div>
