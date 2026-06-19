@@ -1004,13 +1004,33 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               color: '#94a3b8', 
               fontSize: '1.05rem', 
               lineHeight: '1.6', 
-              marginBottom: '40px',
+              marginBottom: score < 20 ? '20px' : '40px',
               fontWeight: '500'
             }}>
               {score === shuffledQuestions.length 
                 ? "Perfect mastery achieved! You've successfully secured all mission data."
                 : "Great job mastering this quiz! Ready for the next challenge?"}
             </p>
+
+            {score < 20 && (
+              <div style={{
+                margin: '0 auto 32px',
+                padding: '6px 14px',
+                borderRadius: '100px',
+                background: 'rgba(245, 158, 11, 0.04)',
+                border: '1px solid rgba(245, 158, 11, 0.12)',
+                color: '#f59e0b',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em'
+              }}>
+                <Zap size={14} fill="#f59e0b" /> Score 20/20 to claim rewards
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {(() => {
