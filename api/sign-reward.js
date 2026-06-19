@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
-import { DAO_QUIZZES, WEB3_ESSENTIALS_QUIZZES, ECOSYSTEM_QUIZZES } from '../src/data/quizzes';
+import { DAO_QUIZZES, WEB3_ESSENTIALS_QUIZZES, ECOSYSTEM_QUIZZES } from '../src/data/quizzes.js';
 
 // Provider and Supabase initialized inside handler to ensure .env is loaded
 
