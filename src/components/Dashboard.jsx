@@ -1817,7 +1817,21 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                           animation: (isAnswered && isCorrect && !showPopup) ? 'blink-correct 0.25s ease-in-out infinite alternate' : 'none'
                         }}
                       >
-                        <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: status === 'correct' ? '#10b981' : status === 'incorrect' ? '#ef4444' : isSelected ? '#2dd4bf' : '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '900', color: 'black' }}>
+                        <div style={{ 
+                          width: '36px', 
+                          height: '36px', 
+                          borderRadius: '50%', 
+                          backgroundColor: status === 'correct' ? '#10b981' : status === 'incorrect' ? '#ef4444' : isSelected ? '#2dd4bf' : '#334155', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontSize: '0.95rem', 
+                          fontWeight: '900', 
+                          color: 'black',
+                          flexShrink: 0,
+                          boxShadow: isSelected ? '0 0 15px rgba(45, 212, 191, 0.4)' : 'none',
+                          transition: 'all 0.2s'
+                        }}>
                           {String.fromCharCode(65 + idx)}
                         </div>
                         <span style={{ fontWeight: '600', color: 'white' }}>{opt}</span>
