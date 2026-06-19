@@ -13,8 +13,16 @@ const XIcon = ({ size = 24 }) => (
   </svg>
 );
 
+const TelegramIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m22 2-7 20-4-9-9-4Z"/>
+    <path d="M22 2 11 13"/>
+  </svg>
+);
+
 const socialLinks = [
   { label: 'X', icon: <XIcon size={18} />, href: 'https://x.com/Goodgov_edu' },
+  { label: 'Telegram', icon: <TelegramIcon size={18} />, href: 'https://t.me/+d7RN6B-0mnJiMTU0' },
   { label: 'GitHub', icon: <GithubIcon size={18} />, href: 'https://github.com/writeprovidence/Goodgov' },
 ];
 
