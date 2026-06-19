@@ -9,15 +9,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userAddress, quizId, amount } = req.body;
-    if (!userAddress || !quizId || !amount) {
+    const { userAddress, quizId } = req.body;
+    if (!userAddress || !quizId) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
+    // SECURITY FIX: Hardcode the reward amount on the server
+    // This prevents bad actors from requesting signatures for arbitrary amounts.
+    const FIXED_REWARD = 10;
+
     // Initialize provider and wallet inside handler to ensure process.env is ready
     const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
-    console.log("TREASURY_PRIVATE_KEY present:", !!TREASURY_PRIVATE_KEY);
-    console.log("TREASURY_PRIVATE_KEY prefix:", TREASURY_PRIVATE_KEY ? TREASURY_PRIVATE_KEY.substring(0, 10) : "none");
     
     const RPC_URL = "https://forno.celo.org";
     const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
@@ -28,7 +30,7 @@ export default async function handler(req, res) {
     }
 
     if (!wallet) {
-      return res.status(500).json({ error: "Treasury wallet not configured. Please check TREASURY_PRIVATE_KEY in .env" });
+      return res.status(500).json({ error: "Treasury wallet not configured." });
     }
 
     // Initialize Supabase (if keys are available)
@@ -54,8 +56,8 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log(`Generating signature for ${userAddress} | ${quizId} | ${amount} G$...`);
-    const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
+    console.log(`Generating signature for ${userAddress} | ${quizId} | ${FIXED_REWARD} G$...`);
+    const amountWei = ethers.utils.parseUnits(FIXED_REWARD.toString(), 18);
     
     const messageHash = ethers.utils.solidityKeccak256(["address", "string", "uint256"], [userAddress, quizId, amountWei]);
     const signature = await wallet.signMessage(ethers.utils.arrayify(messageHash));
@@ -63,7 +65,7 @@ export default async function handler(req, res) {
     // Record in Supabase if available
     if (supabaseClient) {
       await supabaseClient.from('claimed_quizzes').insert([
-        { wallet_address: userAddress, quiz_id: quizId, amount: amount }
+        { wallet_address: userAddress, quiz_id: quizId, amount: FIXED_REWARD }
       ]);
     }
 
@@ -76,6 +78,6 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Signature error:", error);
-    res.status(500).json({ error: error.message || "Internal server error during signature generation." });
+    res.status(500).json({ error: "Internal server error during signature generation." });
   }
 }
