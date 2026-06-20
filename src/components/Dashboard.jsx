@@ -2889,6 +2889,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 boxShadow: '0 4px 15px rgba(45, 212, 191, 0.2)',
                 transition: 'all 0.2s'
               }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'white';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)';
+              }}
             >
               {isConnecting ? '...' : 'Connect Wallet'}
             </button>
