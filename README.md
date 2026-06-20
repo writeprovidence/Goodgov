@@ -1,6 +1,6 @@
 # GoodGov: Learn Web3 & Earn Social Impact Rewards
 
-GoodGov is a premium, gamified Web3 education platform built on the **Celo Network**. It empowers users to master DAO governance, blockchain security, and ecosystem fundamentals while earning **GoodDollar (G$)** tokens for achieving mastery.
+GoodGov is an interactive, gamified educational platform designed to bridge the knowledge gap in decentralized governance. By combining a "high-premium" user experience with incentivized learning, GoodGov guides users through complex governance concepts via structured modules, a deep knowledge base, and a rewards-driven quiz system integrated with the Celo blockchain.
 
 ## 🚀 Vision
 The mission of GoodGov is to transform "dry" technical documentation into an engaging, high-stakes learning adventure. By combining game design principles with social impact finance, we create a fun entry point for the next generation of decentralized citizens.
