@@ -117,6 +117,8 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [claimStatus, setClaimStatus] = useState(null);
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
   const [showAlreadyClaimedModal, setShowAlreadyClaimedModal] = useState(false);
+  const [contractBalance, setContractBalance] = useState(null);
+
   const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => {
     return localStorage.getItem('quiz_rewards_contract') || QUIZ_REWARDS_CONTRACT;
   });
@@ -298,13 +300,29 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         await res.json();
       }
 
-      // Record the claim
+      // Record the claim on-chain first, then sync with Supabase
       const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now() } };
       setClaimedRewardsHistory(newHistory);
       setWalletStorageItem('claim_history', newHistory);
-      setClaimStatus({ success: true });
+      
+      // Update Supabase for persistence
+      if (supabase && walletAddress) {
+        try {
+          await supabase.from('claimed_quizzes').upsert([
+            { wallet_address: walletAddress, quiz_id: quizId, amount: 10 }
+          ], { onConflict: 'wallet_address,quiz_id' });
+          console.log('✅ Supabase updated after successful claim');
+        } catch (supaErr) {
+          console.error('Error updating Supabase after claim:', supaErr);
+          // Don't fail the whole operation if Supabase update fails, 
+          // as on-chain transaction succeeded and local storage is updated.
+        }
+      }
+
+      setClaimStatus({ success: true, message: "Claim successful!" });
       setShowClaimSuccessModal(true);
       
+
     } catch (err) {
       console.error(err);
       if (err.message && (err.message.includes("Signature already issued") || err.message.includes("already claimed"))) {
@@ -608,6 +626,26 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
+
+  // Fetch contract balance for rewards
+  useEffect(() => {
+    const checkBalance = async () => {
+      try {
+        const provider = new ethers.providers.JsonRpcProvider("https://forno.celo.org");
+        const gdContract = new ethers.Contract(GD_TOKEN_ADDRESS, ["function balanceOf(address) view returns (uint256)"], provider);
+        const balance = await gdContract.balanceOf(QUIZ_REWARDS_CONTRACT);
+        setContractBalance(ethers.utils.formatUnits(balance, 18));
+      } catch (err) {
+        console.error('Error checking contract balance:', err);
+      }
+    };
+    checkBalance();
+  }, []);
+
+  // Clear claim status when switching tabs or views
+  useEffect(() => {
+    setClaimStatus(null);
+  }, [activeTab, currentView]);
 
   // Auto-launch quiz if initialMode is provided (from landing page game cards)
   useEffect(() => {
@@ -2401,10 +2439,10 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       }
     });
 
-    // Also include pending (skipped) claims not already in perfectQuizzes
+    // Also include pending (skipped) claims not already in perfectQuizzes, but only if they have answers
     pendingClaims.forEach(claim => {
-      const { quizId } = claim;
-      if (!claimedRewardsHistory[quizId] && !unclaimedRewards.find(r => r.quizTitle === quizId)) {
+      const { quizId, answers } = claim;
+      if (answers && answers.length > 0 && !claimedRewardsHistory[quizId] && !unclaimedRewards.find(r => r.quizTitle === quizId)) {
         unclaimedRewards.push({ quizTitle: quizId, stage: 'Pending', amount: 10 });
       }
     });
@@ -2464,6 +2502,27 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>You have {unclaimedRewards.length} reward{unclaimedRewards.length > 1 ? 's' : ''} waiting to be claimed!</p>
               </div>
             </div>
+
+            {contractBalance !== null && parseFloat(contractBalance) < 10 && (
+              <div style={{ 
+                marginBottom: '20px', 
+                padding: '14px 18px', 
+                borderRadius: '16px', 
+                backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                <div>
+                  <div style={{ color: '#ef4444', fontWeight: '800', fontSize: '0.85rem', marginBottom: '4px' }}>REWARD POOL LOW</div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.78rem', lineHeight: '1.4' }}>
+                    The reward contract is currently low on G$ tokens. You can still claim, but the transaction may fail until the pool is refilled by the treasury.
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {unclaimedRewards.map((reward, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderRadius: '14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(45,212,191,0.15)', flexWrap: 'wrap', gap: '10px' }}>
@@ -2497,8 +2556,33 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 </div>
               ))}
             </div>
+            
+            {claimStatus && (
+              <div style={{ 
+                marginTop: '20px', 
+                padding: '12px 16px', 
+                borderRadius: '12px', 
+                backgroundColor: claimStatus.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${claimStatus.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                color: claimStatus.success ? '#10b981' : '#ef4444',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}>
+                <div style={{ 
+                  width: '6px', height: '6px', borderRadius: '50%', 
+                  backgroundColor: claimStatus.success ? '#10b981' : '#ef4444',
+                  boxShadow: `0 0 8px ${claimStatus.success ? '#10b981' : '#ef4444'}`
+                }} />
+                {claimStatus.message}
+              </div>
+            )}
           </div>
         )}
+
 
         {/* Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>

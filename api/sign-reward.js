@@ -15,11 +15,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing parameters" });
     }
 
-    // VERIFICATION: Check if answers are provided and correct
-    if (!answers || !Array.isArray(answers)) {
-      return res.status(400).json({ error: "Answers required for proof-of-work verification." });
-    }
-
     const allQuizzes = [
       ...DAO_QUIZZES,
       ...WEB3_ESSENTIALS_QUIZZES,
@@ -33,20 +28,46 @@ export default async function handler(req, res) {
 
     // Verify each answer against the server-side quiz data
     let correctCount = 0;
-    for (const ans of answers) {
-      const qData = quiz.questions.find(q => q.question === ans.question);
-      if (qData) {
-        const correctText = qData.options[qData.correct];
-        if (ans.selectedAnswer === correctText) {
-          correctCount++;
+    if (answers && Array.isArray(answers)) {
+      for (const ans of answers) {
+        const qData = quiz.questions.find(q => q.question.trim() === ans.question.trim());
+        if (qData) {
+          const correctText = qData.options[qData.correct];
+          if (ans.selectedAnswer.trim().toLowerCase() === correctText.trim().toLowerCase()) {
+            correctCount++;
+          }
         }
       }
     }
 
     // REQUIREMENT: Must be a perfect run of 20 questions to get the reward
-    if (correctCount < 20) {
+    // FALLBACK: If answers are missing or score is low, check Supabase perfect_quizzes table
+    let isVerified = correctCount >= 20;
+
+    if (!isVerified) {
+      console.log(`Verification failed (${correctCount}/20). Checking Supabase fallback for ${userAddress}...`);
+      if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const supabaseAdmin = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+        const { data: perfectRecord, error: supabaseError } = await supabaseAdmin
+          .from('perfect_quizzes')
+          .select('*')
+          .eq('wallet_address', userAddress)
+          .eq('quiz_title', quizId)
+          .single();
+
+        if (perfectRecord && !supabaseError) {
+          console.log(`✅ Supabase fallback verified: User has a perfect score record.`);
+          isVerified = true;
+        }
+      }
+    }
+
+    if (!isVerified) {
       return res.status(400).json({ 
-        error: `Verification failed. Only ${correctCount}/20 correct. A perfect score of 20/20 is required for reward signature.` 
+        error: `Verification failed. A perfect score is required for reward signature. If you previously achieved this, ensure you are using the same wallet.` 
       });
     }
 
@@ -78,18 +99,18 @@ export default async function handler(req, res) {
       );
     }
 
-    // Check if already claimed
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('claimed_quizzes')
-        .select('id')
-        .eq('wallet_address', userAddress)
-        .eq('quiz_id', quizId)
-        .single();
-
-      if (data) {
-        return res.status(400).json({ error: "Signature already issued for this mission!" });
-      }
+    // NEW: Check blockchain state first.
+    // If the token hasn't actually been claimed on-chain, we always allow re-issuing the signature.
+    const QUIZ_REWARDS_ADDRESS = process.env.QUIZ_REWARDS_CONTRACT || "0x66A159A0F8E204383D3c32Acf5DaF97f23541989";
+    const contract = new ethers.Contract(
+      QUIZ_REWARDS_ADDRESS,
+      ["function hasClaimed(address, string) view returns (bool)"],
+      provider
+    );
+    
+    const onChainClaimed = await contract.hasClaimed(userAddress, quizId);
+    if (onChainClaimed) {
+      return res.status(400).json({ error: "Reward already successfully claimed on the blockchain!" });
     }
 
     console.log(`Generating signature for ${userAddress} | ${quizId} | ${FIXED_REWARD} G$...`);
@@ -98,12 +119,10 @@ export default async function handler(req, res) {
     const messageHash = ethers.utils.solidityKeccak256(["address", "string", "uint256"], [userAddress, quizId, amountWei]);
     const signature = await wallet.signMessage(ethers.utils.arrayify(messageHash));
 
-    // Record in Supabase if available
-    if (supabaseClient) {
-      await supabaseClient.from('claimed_quizzes').insert([
-        { wallet_address: userAddress, quiz_id: quizId, amount: FIXED_REWARD }
-      ]);
-    }
+    // Record in Supabase (upsert to handle retries without erroring)
+    // NOTE: This is now handled by the client after successful on-chain transaction
+    // to avoid discrepancies between Supabase state and blockchain state.
+
 
     res.json({
       success: true,
