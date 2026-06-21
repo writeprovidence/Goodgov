@@ -245,6 +245,25 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         const sigData = await sigRes.json();
         if (!sigRes.ok) throw new Error(sigData.error || 'Failed to get signature');
 
+        // ── Gas balance check ──
+        // Check user has enough CELO for gas before attempting the transaction
+        try {
+          const celoProvider = new ethers.providers.JsonRpcProvider("https://forno.celo.org");
+          const celoBalance = await celoProvider.getBalance(walletAddress);
+          const celoBalanceEth = parseFloat(ethers.utils.formatEther(celoBalance));
+          const MIN_CELO_FOR_GAS = 0.001; // ~$0.001, safely above actual cost
+          if (celoBalanceEth < MIN_CELO_FOR_GAS) {
+            throw new Error(
+              `⛽ Insufficient CELO for gas fees. You need at least 0.001 CELO (~$0.001) to cover the transaction fee. ` +
+              `Your current balance: ${celoBalanceEth.toFixed(6)} CELO. ` +
+              `Get CELO at app.uniswap.org or any exchange that supports the Celo network.`
+            );
+          }
+        } catch (balErr) {
+          if (balErr.message.includes('⛽')) throw balErr; // re-throw our custom error
+          console.warn('Could not check CELO balance, proceeding anyway:', balErr.message);
+        }
+
         const eip1193provider = await wallets[0].getEthereumProvider();
         
         // Switch to Celo network
