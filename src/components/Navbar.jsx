@@ -64,27 +64,7 @@ const Navbar = ({ onStart, isLoggedIn, walletAddress, login, logout, isMiniPay }
           <svg width={isSmallMobile ? "16" : "20"} height={isSmallMobile ? "16" : "20"} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
 
-        {!isLoggedIn ? (
-          !isMiniPay && (
-            <button 
-              onClick={login}
-              style={{
-                padding: isSmallMobile ? '0.6rem 1.2rem' : '0.85rem 2.5rem',
-                borderRadius: '0px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                fontWeight: '700',
-                fontSize: isSmallMobile ? '0.75rem' : '0.9rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s'
-              }}
-            >
-              Connect Wallet
-            </button>
-          )
-        ) : (
+        {!isLoggedIn ? null : (
           <WalletDropdown 
             address={walletAddress} 
             isLoggedIn={isLoggedIn} 
