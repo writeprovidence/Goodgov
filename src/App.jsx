@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
+// Unified App Entry - Triggering Build
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Trusted from './components/Trusted';
