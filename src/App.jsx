@@ -12,8 +12,10 @@ import Footer from './components/Footer';
 import Dashboard from './components/Dashboard';
 
 import { usePrivy } from '@privy-io/react-auth';
+import { useMiniPay } from './hooks/useMiniPay';
 
 function App() {
+  useMiniPay();
   const [showDashboard, setShowDashboard] = useState(false);
   const [selectedMode, setSelectedMode] = useState(null);
   const [initialTab, setInitialTab] = useState(null);

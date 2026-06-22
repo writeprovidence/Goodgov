@@ -5,30 +5,44 @@ import App from './App.jsx'
 
 import { PrivyProvider } from '@privy-io/react-auth';
 import { celo } from 'viem/chains';
+import { WagmiProvider, createConfig, http } from 'wagmi';
+import { injected } from 'wagmi/connectors';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Configure Wagmi as per Celo MiniPay docs
+const config = createConfig({
+  chains: [celo],
+  connectors: [injected()],
+  transports: {
+    [celo.id]: http(),
+  },
+});
+
+const queryClient = new QueryClient();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <PrivyProvider
-      appId={import.meta.env.VITE_PRIVY_APP_ID}
-      config={{
-        loginMethods: ['wallet'],
-        appearance: {
-          theme: 'dark',
-          accentColor: '#2dd4bf',
-          // wallet_connect_qr shows a QR trigger for standard browsers (mobile & desktop)
-          // wallet_connect opens the mobile deep-link flow in mobile browsers
-          walletList: ['metamask', 'rainbow', 'trust', 'wallet_connect', 'wallet_connect_qr'],
-        },
-        defaultChain: celo,
-        supportedChains: [celo],
-        // Optional: add your WalletConnect Cloud Project ID from cloud.walletconnect.com
-        // for better reliability. If omitted, Privy uses its own project ID.
-        ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID && {
-          walletConnectCloudProjectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
-        }),
-      }}
-    >
-      <App />
-    </PrivyProvider>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <PrivyProvider
+          appId={import.meta.env.VITE_PRIVY_APP_ID}
+          config={{
+            loginMethods: ['wallet'],
+            appearance: {
+              theme: 'dark',
+              accentColor: '#2dd4bf',
+              walletList: ['metamask', 'rainbow', 'trust', 'wallet_connect', 'wallet_connect_qr'],
+            },
+            defaultChain: celo,
+            supportedChains: [celo],
+            ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID && {
+              walletConnectCloudProjectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
+            }),
+          }}
+        >
+          <App />
+        </PrivyProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   </StrictMode>,
 )

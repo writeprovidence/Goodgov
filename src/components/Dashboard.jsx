@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useAccount } from 'wagmi';
+import { useMiniPay } from '../hooks/useMiniPay';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
 import { playSound } from '../utils/sounds';
@@ -110,8 +112,11 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [showExitModal, setShowExitModal] = useState(false);
   const { login, logout, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
-  const walletAddress = user?.wallet?.address;
-  const isLoggedIn = authenticated;
+  const { isMiniPay } = useMiniPay();
+  const { address: wagmiAddress, isConnected: isWagmiConnected } = useAccount();
+  
+  const walletAddress = user?.wallet?.address || wagmiAddress;
+  const isLoggedIn = authenticated || isWagmiConnected;
   const isConnecting = false; // Privy handles connection state internally
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimStatus, setClaimStatus] = useState(null);
@@ -264,7 +269,11 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           console.warn('Could not check CELO balance, proceeding anyway:', balErr.message);
         }
 
-        const eip1193provider = await wallets[0].getEthereumProvider();
+        const eip1193provider = wallets[0] 
+          ? await wallets[0].getEthereumProvider() 
+          : (window.ethereum?.isMiniPay ? window.ethereum : null);
+        
+        if (!eip1193provider) throw new Error("No wallet provider found. Please connect your wallet.");
         
         // Switch to Celo network
         try {
@@ -371,7 +380,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       return;
     }
     try {
-      const eip1193provider = await wallets[0].getEthereumProvider();
+      const eip1193provider = wallets[0] 
+        ? await wallets[0].getEthereumProvider() 
+        : (window.ethereum?.isMiniPay ? window.ethereum : null);
+      
+      if (!eip1193provider) throw new Error("No wallet provider found. Please connect your wallet.");
+      
       const provider = new ethers.providers.Web3Provider(eip1193provider);
       const { ClaimSDK } = await import("@gooddollar/web3sdk-v2");
       const sdk = new ClaimSDK(provider, "production-celo");
@@ -904,7 +918,11 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         const sigData = await sigRes.json();
         if (!sigRes.ok) throw new Error(sigData.error || 'Failed to get signature');
 
-        const eip1193provider = await wallets[0].getEthereumProvider();
+        const eip1193provider = wallets[0] 
+          ? await wallets[0].getEthereumProvider() 
+          : (window.ethereum?.isMiniPay ? window.ethereum : null);
+        
+        if (!eip1193provider) throw new Error("No wallet provider found. Please connect your wallet.");
         
         // Switch to Celo network
         try {
@@ -1506,7 +1524,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
               )}
 
               {/* Pending confirmation */}
-              {isEligible && !isClaimed && isPending && (
+              {isEligible && !isClaimed && isPending && isLoggedIn && (
                 <div style={{ textAlign: 'center', fontSize: '0.78rem', color: '#2dd4bf', fontWeight: '700', opacity: 0.8, paddingTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                   <CheckCircle size={13} /> Saved to Profile · Claim anytime
                 </div>
@@ -2976,31 +2994,33 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           {!isLoggedIn ? (
-            <button 
-              onClick={connectWallet}
-              disabled={isConnecting}
-              style={{
-                padding: isMobile ? '10px 16px' : '12px 24px',
-                borderRadius: '0px',
-                background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)',
-                color: 'black',
-                border: 'none',
-                fontWeight: '800',
-                fontSize: isMobile ? '0.75rem' : '0.9rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                boxShadow: '0 4px 15px rgba(45, 212, 191, 0.2)',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'white';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)';
-              }}
-            >
-              {isConnecting ? '...' : 'Connect Wallet'}
-            </button>
+            !isMiniPay && (
+              <button 
+                onClick={connectWallet}
+                disabled={isConnecting}
+                style={{
+                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  borderRadius: '0px',
+                  background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)',
+                  color: 'black',
+                  border: 'none',
+                  fontWeight: '800',
+                  fontSize: isMobile ? '0.75rem' : '0.9rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 4px 15px rgba(45, 212, 191, 0.2)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'white';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)';
+                }}
+              >
+                {isConnecting ? '...' : 'Connect Wallet'}
+              </button>
+            )
           ) : (
             <WalletDropdown 
               address={walletAddress} 
