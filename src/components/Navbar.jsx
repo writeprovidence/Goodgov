@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import WalletDropdown from './WalletDropdown';
 import { useMiniPay } from '../hooks/useMiniPay';
 
 const Navbar = ({ onStart, isLoggedIn, walletAddress, login, logout, isMiniPay }) => {

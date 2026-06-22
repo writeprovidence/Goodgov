@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useAccount } from 'wagmi';
+import { useAccount, useDisconnect } from 'wagmi';
 import { useMiniPay } from '../hooks/useMiniPay';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
@@ -114,6 +114,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const { wallets } = useWallets();
   const { isMiniPay } = useMiniPay();
   const { address: wagmiAddress, isConnected: isWagmiConnected } = useAccount();
+  const { disconnect } = useDisconnect();
   
   const walletAddress = user?.wallet?.address || wagmiAddress;
   const isLoggedIn = authenticated || isWagmiConnected;
@@ -872,6 +873,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
 
   const disconnectWallet = () => {
     logout();
+    disconnect();
     setCurrentView('explore');
   };
 
@@ -2999,17 +3001,20 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 onClick={connectWallet}
                 disabled={isConnecting}
                 style={{
-                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  padding: isMobile ? '0.6rem 1.2rem' : '0.85rem 1.2rem',
                   borderRadius: '0px',
                   background: 'linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%)',
                   color: 'black',
                   border: 'none',
                   fontWeight: '800',
-                  fontSize: isMobile ? '0.75rem' : '0.9rem',
+                  fontSize: isMobile ? '0.8rem' : '1rem',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   boxShadow: '0 4px 15px rgba(45, 212, 191, 0.2)',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.background = 'white';

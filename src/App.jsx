@@ -13,7 +13,7 @@ import Footer from './components/Footer';
 import Dashboard from './components/Dashboard';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { useAccount } from 'wagmi';
+import { useAccount, useDisconnect } from 'wagmi';
 import { useMiniPay } from './hooks/useMiniPay';
 
 function App() {
@@ -23,6 +23,16 @@ function App() {
   const [initialTab, setInitialTab] = useState(null);
   const { login, authenticated, logout, user } = usePrivy();
   const { address: wagmiAddress, isConnected: isWagmiConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      disconnect();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   const isLoggedIn = authenticated || isWagmiConnected;
   const walletAddress = user?.wallet?.address || wagmiAddress;
@@ -45,7 +55,7 @@ function App() {
         isLoggedIn={isLoggedIn} 
         walletAddress={walletAddress}
         login={login} 
-        logout={logout}
+        logout={handleLogout}
         isMiniPay={isMiniPay}
       />
       <main>
