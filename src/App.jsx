@@ -12,14 +12,19 @@ import Footer from './components/Footer';
 import Dashboard from './components/Dashboard';
 
 import { usePrivy } from '@privy-io/react-auth';
+import { useAccount } from 'wagmi';
 import { useMiniPay } from './hooks/useMiniPay';
 
 function App() {
-  useMiniPay();
+  const { isMiniPay } = useMiniPay();
   const [showDashboard, setShowDashboard] = useState(false);
   const [selectedMode, setSelectedMode] = useState(null);
   const [initialTab, setInitialTab] = useState(null);
   const { login, authenticated, logout, user } = usePrivy();
+  const { address: wagmiAddress, isConnected: isWagmiConnected } = useAccount();
+
+  const isLoggedIn = authenticated || isWagmiConnected;
+  const walletAddress = user?.wallet?.address || wagmiAddress;
 
   const handleStart = (mode = null, tab = null) => {
     setSelectedMode(mode);
@@ -34,7 +39,14 @@ function App() {
 
   return (
     <>
-      <Navbar onStart={() => handleStart()} authenticated={authenticated} logout={logout} user={user} login={login} />
+      <Navbar 
+        onStart={() => handleStart()} 
+        isLoggedIn={isLoggedIn} 
+        walletAddress={walletAddress}
+        login={login} 
+        logout={logout}
+        isMiniPay={isMiniPay}
+      />
       <main>
         <Hero onStart={() => handleStart()} />
         <Trusted />

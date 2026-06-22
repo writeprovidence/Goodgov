@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Copy, LogOut, ChevronDown, Check } from 'lucide-react';
 
-const WalletDropdown = ({ address, authenticated, onLogout, onProfile }) => {
+const WalletDropdown = ({ address, isLoggedIn, onLogout, onProfile }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const dropdownRef = useRef(null);
@@ -26,7 +26,7 @@ const WalletDropdown = ({ address, authenticated, onLogout, onProfile }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!authenticated) return null;
+  if (!isLoggedIn && !address) return null;
 
   return (
     <div style={{ position: 'relative' }} ref={dropdownRef}>

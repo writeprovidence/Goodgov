@@ -5,7 +5,6 @@ import { injected } from 'wagmi/connectors';
 /**
  * Hook to handle MiniPay compatibility.
  * It detects if the app is running within MiniPay and automatically connects the wallet.
- * Based on Celo MiniPay documentation: https://docs.celo.org/build-on-celo/build-on-minipay/quickstart
  */
 export const useMiniPay = () => {
   const { connect } = useConnect();
@@ -14,17 +13,25 @@ export const useMiniPay = () => {
 
   useEffect(() => {
     // Check if the provider is MiniPay
-    if (typeof window !== 'undefined' && window.ethereum?.isMiniPay) {
-      setIsMiniPay(true);
-      
-      // Auto-connect if not connected via Wagmi
-      if (!isConnected) {
-        console.log('MiniPay detected, auto-connecting via Wagmi...');
-        connect({ 
-          connector: injected() 
-        });
+    const checkMiniPay = () => {
+      if (typeof window !== 'undefined' && window.ethereum?.isMiniPay) {
+        console.log('Detecting MiniPay environment...');
+        setIsMiniPay(true);
+        
+        if (!isConnected) {
+          console.log('MiniPay detected, auto-connecting...');
+          connect({ connector: injected() });
+        }
+      } else {
+        setIsMiniPay(false);
       }
-    }
+    };
+
+    checkMiniPay();
+    
+    // Some providers inject window.ethereum slightly later
+    const timeout = setTimeout(checkMiniPay, 1000);
+    return () => clearTimeout(timeout);
   }, [connect, isConnected]);
 
   return { isMiniPay };

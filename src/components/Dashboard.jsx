@@ -3024,7 +3024,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           ) : (
             <WalletDropdown 
               address={walletAddress} 
-              authenticated={authenticated} 
+              isLoggedIn={isLoggedIn} 
               onLogout={disconnectWallet}
               onProfile={() => setActiveTab('Profile')}
             />
