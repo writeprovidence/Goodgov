@@ -64,14 +64,7 @@ const Navbar = ({ onStart, isLoggedIn, walletAddress, login, logout, isMiniPay }
           <svg width={isSmallMobile ? "16" : "20"} height={isSmallMobile ? "16" : "20"} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
 
-        {!isLoggedIn ? null : (
-          <WalletDropdown 
-            address={walletAddress} 
-            isLoggedIn={isLoggedIn} 
-            onLogout={logout}
-            onProfile={() => onStart(null, 'Profile')}
-          />
-        )}
+        {/* No wallet buttons on landing page as requested */}
       </div>
     </nav>
   );
