@@ -2,9 +2,9 @@ import React from 'react';
 import { playSound } from '../utils/sounds';
 
 /* Small floating orbit node */
-const OrbitNode = ({ icon, angle, label, color }) => {
+const OrbitNode = ({ icon, angle, label, color, orbitRadius = 180, nodeSize = 60, isMobile }) => {
   const rad = (angle * Math.PI) / 180;
-  const r = 180;
+  const r = orbitRadius;
   const x = Math.cos(rad) * r;
   const y = Math.sin(rad) * r;
   return (
@@ -20,21 +20,21 @@ const OrbitNode = ({ icon, angle, label, color }) => {
       zIndex: 2,
     }}>
       <div style={{
-        width: '60px',
-        height: '60px',
+        width: `${nodeSize}px`,
+        height: `${nodeSize}px`,
         background: 'var(--bg-card)',
         border: `1.5px solid ${color}40`,
-        borderRadius: '16px',
+        borderRadius: isMobile ? '12px' : '16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         backdropFilter: 'blur(10px)',
         boxShadow: `0 8px 24px ${color}20`,
-        fontSize: '1.5rem',
+        fontSize: isMobile ? '1.1rem' : '1.5rem',
       }}>
         {icon}
       </div>
-      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: isMobile ? '0.55rem' : '0.65rem', color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' }}>
         {label}
       </span>
     </div>
@@ -51,6 +51,11 @@ const Hero = ({ onStart }) => {
   }, []);
 
   const isMobile = windowWidth <= 768;
+  const orbitRadius = isMobile ? 120 : 180;
+  const ringSize = isMobile ? 240 : 380;
+  const innerRingSize = isMobile ? 180 : 300;
+  const centerCardSize = isMobile ? 120 : 160;
+  const nodeSize = isMobile ? 45 : 60;
 
   return (
     <section id="hero" style={{
@@ -161,16 +166,16 @@ const Hero = ({ onStart }) => {
           {/* Spinning dashed ring */}
           <div style={{
             position: 'absolute',
-            width: '380px',
-            height: '380px',
+            width: `${ringSize}px`,
+            height: `${ringSize}px`,
             borderRadius: '50%',
             border: '1.5px dashed rgba(45,212,191,0.2)',
             animation: 'spin-ring 30s linear infinite',
           }} />
           <div style={{
             position: 'absolute',
-            width: '300px',
-            height: '300px',
+            width: `${innerRingSize}px`,
+            height: `${innerRingSize}px`,
             borderRadius: '50%',
             border: '1.5px dashed rgba(168,85,247,0.15)',
             animation: 'spin-ring 20s linear infinite reverse',
@@ -178,10 +183,10 @@ const Hero = ({ onStart }) => {
 
           {/* Center card */}
           <div style={{
-            width: '160px',
-            height: '160px',
+            width: `${centerCardSize}px`,
+            height: `${centerCardSize}px`,
             background: 'linear-gradient(135deg, #111827 0%, #1e293b 100%)',
-            borderRadius: '28px',
+            borderRadius: isMobile ? '20px' : '28px',
             border: '1.5px solid rgba(45,212,191,0.3)',
             boxShadow: 'var(--shadow-glow)',
             display: 'flex',
@@ -192,9 +197,9 @@ const Hero = ({ onStart }) => {
             zIndex: 3,
             animation: 'float 4s ease-in-out infinite',
           }}>
-            <div style={{ fontSize: '2.5rem' }}>🌐</div>
+            <div style={{ fontSize: isMobile ? '1.8rem' : '2.5rem' }}>🌐</div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'white' }}>Web3 Mastery</div>
+              <div style={{ fontSize: isMobile ? '0.7rem' : '0.85rem', fontWeight: '700', color: 'white' }}>Web3 Mastery</div>
               <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', marginTop: '4px' }}>
                 {[1,2,3,4].map(i => (
                   <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: i <= 3 ? 'var(--primary)' : 'var(--glass-border)' }} />
@@ -204,10 +209,10 @@ const Hero = ({ onStart }) => {
           </div>
 
           {/* Orbit nodes */}
-          <OrbitNode icon="💰" angle={-90} label="DeFi" color="#3b82f6" />
-          <OrbitNode icon="🛡️" angle={0}   label="Security" color="#f59e0b" />
-          <OrbitNode icon="🏛️" angle={90}  label="Governance" color="#a855f7" />
-          <OrbitNode icon="🖼️" angle={180} label="NFTS" color="#2dd4bf" />
+          <OrbitNode icon="💰" angle={-90} label="DeFi" color="#3b82f6" orbitRadius={orbitRadius} nodeSize={nodeSize} isMobile={isMobile} />
+          <OrbitNode icon="🛡️" angle={0}   label="Security" color="#f59e0b" orbitRadius={orbitRadius} nodeSize={nodeSize} isMobile={isMobile} />
+          <OrbitNode icon="🏛️" angle={90}  label="Governance" color="#a855f7" orbitRadius={orbitRadius} nodeSize={nodeSize} isMobile={isMobile} />
+          <OrbitNode icon="🖼️" angle={180} label="NFTS" color="#2dd4bf" orbitRadius={orbitRadius} nodeSize={nodeSize} isMobile={isMobile} />
         </div>
       </div>
     </section>
