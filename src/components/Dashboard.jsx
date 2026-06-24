@@ -136,31 +136,24 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       const saved = getWalletStorageItem('pending_claims', []);
       setPendingClaims(saved);
     } else {
-      const anonymousSaved = localStorage.getItem('goodgov_anonymous_pending_claims');
-      setPendingClaims(anonymousSaved ? JSON.parse(anonymousSaved) : []);
+      setPendingClaims([]); // Clear pending claims for anonymous users
     }
   }, [walletAddress]);
 
   const savePendingClaim = (quizId, answers = []) => {
+    if (!walletAddress) return; // Do not save claims for anonymous users
     setPendingClaims(prev => {
       if (prev.find(p => p.quizId === quizId)) return prev;
       const next = [...prev, { quizId, answers }];
-      if (walletAddress) {
-        setWalletStorageItem('pending_claims', next);
-      } else {
-        localStorage.setItem('goodgov_anonymous_pending_claims', JSON.stringify(next));
-      }
+      setWalletStorageItem('pending_claims', next);
       return next;
     });
   };
   const removePendingClaim = (quizId) => {
+    if (!walletAddress) return;
     setPendingClaims(prev => {
       const next = prev.filter(p => p.quizId !== quizId);
-      if (walletAddress) {
-        setWalletStorageItem('pending_claims', next);
-      } else {
-        localStorage.setItem('goodgov_anonymous_pending_claims', JSON.stringify(next));
-      }
+      setWalletStorageItem('pending_claims', next);
       return next;
     });
   };
