@@ -1467,8 +1467,9 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 </button>
               )}
 
+
               {/* NEXT MISSION button */}
-              {getNextQuiz() ? (
+              {getNextQuiz() && (
                 <button
                   onClick={() => startQuiz(getNextQuiz(), activeQuizStage)}
                   style={{
@@ -1488,33 +1489,13 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 >
                   <ChevronRight size={15} /> START NEXT MISSION
                 </button>
-              ) : (
-                <button
-                  onClick={() => { setCurrentView('selection'); setActiveQuiz(null); setQuizCompleted(false); }}
-                  style={{
-                    width: '100%', padding: '12px 20px',
-                    borderRadius: '6px',
-                    background: 'rgba(99,102,241,0.1)',
-                    color: '#a5b4fc',
-                    fontWeight: '800', fontSize: '0.82rem',
-                    border: '1.5px solid rgba(99,102,241,0.25)',
-                    cursor: 'pointer',
-                    transition: 'all 0.22s ease',
-                    textTransform: 'uppercase', letterSpacing: '0.08em'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                >
-                  {isGlossaryQuiz ? 'RETURN TO GLOSSARY' : 'RETURN TO SELECTION'}
-                </button>
               )}
 
-
-              {/* EXIT button replaces SKIP */}
-              {isEligible && !isClaimed && !isPending && (
+              {/* EXIT button - always shown after quiz completion to return to selection */}
+              {!isClaimed && !isPending && (
                 <button
                   onClick={() => {
-                    savePendingClaim(quizId, userAnswers);
+                    if (isEligible) savePendingClaim(quizId, userAnswers);
                     setCurrentView('selection');
                     setActiveQuiz(null);
                     setQuizCompleted(false);
