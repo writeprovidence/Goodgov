@@ -3134,7 +3134,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             padding: isMobile ? '48px 28px' : '56px 36px',
             textAlign: 'center',
             boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
-            animation: 'popUpCenter 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
+            animation: 'popUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
             position: 'relative'
           }}>
             {/* Success Icon */}
@@ -3211,12 +3211,12 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           zIndex: 9999,
           backgroundColor: 'rgba(5,10,21,0.96)',
           backdropFilter: 'blur(24px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           animation: 'fadeIn 0.3s ease-out'
         }}>
           <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
             maxWidth: '400px', 
             width: 'calc(100% - 48px)',
             background: 'linear-gradient(180deg, #111827 0%, #030712 100%)',
@@ -3225,7 +3225,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
             padding: isMobile ? '48px 24px' : '56px 40px',
             textAlign: 'center',
             boxShadow: '0 40px 120px rgba(0,0,0,0.8), inset 0 0 80px rgba(45, 212, 191, 0.05)',
-            animation: 'popUpCenter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            animation: 'popUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
