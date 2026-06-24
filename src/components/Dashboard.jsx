@@ -330,9 +330,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       }
 
       // Record the claim on-chain first, then sync with Supabase
-      const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now() } };
-      setClaimedRewardsHistory(newHistory);
-      setWalletStorageItem('claim_history', newHistory);
+      setClaimedRewardsHistory(prev => {
+        const next = { ...prev, [quizId]: { amount: 10, timestamp: Date.now() } };
+        setWalletStorageItem('claim_history', next);
+        return next;
+      });
+      
+      // Also remove from pending if it exists
+      removePendingClaim(quizId);
       
       // Update Supabase for persistence
       if (supabase && walletAddress) {
@@ -357,11 +362,13 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       if (err.message && (err.message.includes("Signature already issued") || err.message.includes("already claimed"))) {
         setShowAlreadyClaimedModal(true);
         // Sync local state if contract says it's claimed
-        if (!claimedRewardsHistory[quizId]) {
-          const newHistory = { ...claimedRewardsHistory, [quizId]: { amount: 10, timestamp: Date.now(), txHash: 'Already Claimed' } };
-          setClaimedRewardsHistory(newHistory);
-          setWalletStorageItem('claim_history', newHistory);
-        }
+        setClaimedRewardsHistory(prev => {
+          if (prev[quizId]) return prev;
+          const next = { ...prev, [quizId]: { amount: 10, timestamp: Date.now(), txHash: 'Already Claimed' } };
+          setWalletStorageItem('claim_history', next);
+          return next;
+        });
+        removePendingClaim(quizId);
       } else {
         setClaimStatus({ 
           success: false, 
@@ -2574,23 +2581,27 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ fontWeight: '900', color: '#2dd4bf', fontSize: '0.95rem' }}>+{reward.amount} G$</span>
-                    <button 
-                      onClick={() => handleClaimReward(reward.quizTitle)} 
-                      disabled={isClaiming}
-                      style={{
-                        padding: '8px 20px',
-                        borderRadius: '12px',
-                        backgroundColor: '#2dd4bf',
-                        color: '#0a0f1e',
-                        border: 'none',
-                        fontWeight: '800',
-                        cursor: isClaiming ? 'not-allowed' : 'pointer',
-                        opacity: isClaiming ? 0.7 : 1,
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      {isClaiming ? 'Claiming...' : 'Claim Now'}
-                    </button>
+                    {claimedRewardsHistory[reward.quizTitle] ? (
+                      <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '800' }}>✓ CLAIMED</span>
+                    ) : (
+                      <button 
+                        onClick={() => handleClaimReward(reward.quizTitle)} 
+                        disabled={isClaiming}
+                        style={{
+                          padding: '8px 20px',
+                          borderRadius: '12px',
+                          backgroundColor: '#2dd4bf',
+                          color: '#0a0f1e',
+                          border: 'none',
+                          fontWeight: '800',
+                          cursor: isClaiming ? 'not-allowed' : 'pointer',
+                          opacity: isClaiming ? 0.7 : 1,
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        {isClaiming ? 'Claiming...' : 'Claim Now'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
