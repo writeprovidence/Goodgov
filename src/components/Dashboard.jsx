@@ -116,7 +116,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const { address: wagmiAddress, isConnected: isWagmiConnected } = useAccount();
   const { disconnect } = useDisconnect();
   
-  const walletAddress = user?.wallet?.address || wagmiAddress;
+  const walletAddress = (user?.wallet?.address || wagmiAddress)?.toLowerCase();
   const isLoggedIn = authenticated || isWagmiConnected;
   const isConnecting = false; // Privy handles connection state internally
   const [isClaiming, setIsClaiming] = useState(false);
@@ -555,7 +555,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         const { data: claimedData, error: claimedError } = await supabase
           .from('claimed_quizzes')
           .select('*')
-          .eq('wallet_address', walletAddress);
+          .ilike('wallet_address', walletAddress);
 
         if (!claimedError && claimedData) {
           const localHistory = getWalletStorageItem('claim_history', {});
@@ -578,7 +578,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         const { data: stagesData, error: stagesError } = await supabase
           .from('completed_stages')
           .select('*')
-          .eq('wallet_address', walletAddress);
+          .ilike('wallet_address', walletAddress);
 
         if (!stagesError && stagesData) {
           const localCompleted = getWalletStorageItem('completed_stages', {
@@ -603,7 +603,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
         const { data: perfectData, error: perfectError } = await supabase
           .from('perfect_quizzes')
           .select('*')
-          .eq('wallet_address', walletAddress);
+          .ilike('wallet_address', walletAddress);
 
         if (!perfectError && perfectData) {
           const localPerfect = getWalletStorageItem('perfect_quizzes', {
