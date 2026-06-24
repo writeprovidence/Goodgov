@@ -1509,10 +1509,16 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                 </button>
               )}
 
-              {/* SKIP button */}
+
+              {/* EXIT button replaces SKIP */}
               {isEligible && !isClaimed && !isPending && (
                 <button
-                  onClick={() => savePendingClaim(quizId, userAnswers)}
+                  onClick={() => {
+                    savePendingClaim(quizId, userAnswers);
+                    setCurrentView('selection');
+                    setActiveQuiz(null);
+                    setQuizCompleted(false);
+                  }}
                   style={{
                     width: '100%', padding: '12px 20px',
                     borderRadius: '6px',
@@ -1528,15 +1534,8 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(71,85,105,0.5)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = 'rgba(51,65,85,0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                 >
-                  Skip
+                  Exit
                 </button>
-              )}
-
-              {/* Pending confirmation */}
-              {isEligible && !isClaimed && isPending && isLoggedIn && (
-                <div style={{ textAlign: 'center', fontSize: '0.78rem', color: '#2dd4bf', fontWeight: '700', opacity: 0.8, paddingTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <CheckCircle size={13} /> Saved to Profile · Claim anytime
-                </div>
               )}
             </div>{/* end action buttons */}
           </div>{/* end card */}
