@@ -128,25 +128,39 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
   const [quizRewardsAddress, setQuizRewardsAddress] = useState(() => {
     return localStorage.getItem('quiz_rewards_contract') || QUIZ_REWARDS_CONTRACT;
   });
-  const [pendingClaims, setPendingClaims] = useState(() => {
-    try { 
-      const saved = JSON.parse(localStorage.getItem('goodgov_pending_claims') || '[]');
-      // Migration: convert old string array to object array if needed
-      return saved.map(item => typeof item === 'string' ? { quizId: item, answers: [] } : item);
-    } catch { return []; }
-  });
+  const [pendingClaims, setPendingClaims] = useState([]);
+  
+  // Initialize pending claims when wallet changes
+  useEffect(() => {
+    if (walletAddress) {
+      const saved = getWalletStorageItem('pending_claims', []);
+      setPendingClaims(saved);
+    } else {
+      const anonymousSaved = localStorage.getItem('goodgov_anonymous_pending_claims');
+      setPendingClaims(anonymousSaved ? JSON.parse(anonymousSaved) : []);
+    }
+  }, [walletAddress]);
+
   const savePendingClaim = (quizId, answers = []) => {
     setPendingClaims(prev => {
       if (prev.find(p => p.quizId === quizId)) return prev;
       const next = [...prev, { quizId, answers }];
-      localStorage.setItem('goodgov_pending_claims', JSON.stringify(next));
+      if (walletAddress) {
+        setWalletStorageItem('pending_claims', next);
+      } else {
+        localStorage.setItem('goodgov_anonymous_pending_claims', JSON.stringify(next));
+      }
       return next;
     });
   };
   const removePendingClaim = (quizId) => {
     setPendingClaims(prev => {
       const next = prev.filter(p => p.quizId !== quizId);
-      localStorage.setItem('goodgov_pending_claims', JSON.stringify(next));
+      if (walletAddress) {
+        setWalletStorageItem('pending_claims', next);
+      } else {
+        localStorage.setItem('goodgov_anonymous_pending_claims', JSON.stringify(next));
+      }
       return next;
     });
   };
@@ -570,11 +584,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           const localHistory = getWalletStorageItem('claim_history', {});
           const remoteHistory = {};
           claimedData.forEach(item => {
-            remoteHistory[item.quiz_id] = {
-              amount: item.amount,
-              timestamp: new Date(item.claimed_at).getTime(),
-              txHash: item.tx_hash
-            };
+            const quizKey = item.quiz_id || item.quiz_title;
+            if (quizKey) {
+              remoteHistory[quizKey] = {
+                amount: item.amount || 10,
+                timestamp: new Date(item.claimed_at || item.created_at || Date.now()).getTime(),
+                txHash: item.tx_hash || 'Confirmed'
+              };
+            }
           });
           
           // Merge: Remote takes precedence for timestamp/amount, but keep unique local entries
