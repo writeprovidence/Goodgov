@@ -8,6 +8,8 @@ import { celo } from 'viem/chains';
 import { WagmiProvider, createConfig, http } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Analytics } from '@vercel/analytics/react';
+
 
 // Configure Wagmi as per Celo MiniPay docs
 const config = createConfig({
@@ -41,6 +43,7 @@ createRoot(document.getElementById('root')).render(
           }}
         >
           <App />
+          <Analytics />
         </PrivyProvider>
       </QueryClientProvider>
     </WagmiProvider>
