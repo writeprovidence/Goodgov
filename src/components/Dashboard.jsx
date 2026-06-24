@@ -361,6 +361,7 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
       console.error(err);
       if (err.message && (err.message.includes("Signature already issued") || err.message.includes("already claimed"))) {
         setShowAlreadyClaimedModal(true);
+        
         // Sync local state if contract says it's claimed
         setClaimedRewardsHistory(prev => {
           if (prev[quizId]) return prev;
@@ -368,6 +369,14 @@ const Dashboard = ({ onBack, initialMode, initialTab }) => {
           setWalletStorageItem('claim_history', next);
           return next;
         });
+
+        // Also sync with Supabase for persistence across sessions
+        if (supabase && walletAddress) {
+          supabase.from('claimed_quizzes').upsert([
+            { wallet_address: walletAddress, quiz_id: quizId, amount: 10, tx_hash: 'Already Claimed' }
+          ], { onConflict: 'wallet_address,quiz_id' }).catch(e => console.error("Sync error:", e));
+        }
+
         removePendingClaim(quizId);
       } else {
         setClaimStatus({ 
